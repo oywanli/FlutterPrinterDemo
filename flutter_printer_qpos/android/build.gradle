@@ -41,7 +41,7 @@ android {
 }
 
 dependencies {
-    implementation 'com.dspread.print:dspread_print_sdk:1.2.0'
+    implementation 'com.dspread.print:dspread_print_sdk:1.2.3'
     implementation "com.android.support:appcompat-v7:28.0.0"
     implementation 'androidx.core:core:1.1.0'
     implementation files('libs/fastjson-1.2.62.jar')
