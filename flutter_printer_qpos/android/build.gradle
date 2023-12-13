@@ -1,0 +1,51 @@
+group 'com.dspread.flutter_printer_qpos.flutter_printer_qpos'
+version '1.0'
+
+buildscript {
+    repositories {
+        mavenCentral()
+        jcenter() { url 'https://jcenter.bintray.com/' }
+        google()
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:7.4.0'
+    }
+}
+
+rootProject.allprojects {
+    repositories {
+        mavenCentral()
+        google()
+        jcenter() { url 'https://jcenter.bintray.com/' }
+        maven { url 'https://jitpack.io' }
+        maven {
+            url 'https://gitlab.com/api/v4/projects/4128550/packages/maven'
+        }
+    }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+    compileSdkVersion 30
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    defaultConfig {
+        minSdkVersion 16
+    }
+}
+
+dependencies {
+    implementation 'com.dspread.print:dspread_print_sdk:1.2.0'
+    implementation "com.android.support:appcompat-v7:28.0.0"
+    implementation 'androidx.core:core:1.1.0'
+    implementation files('libs/fastjson-1.2.62.jar')
+
+
+
+}
