@@ -114,11 +114,11 @@ class FlutterPrinterQpos {
     _methodChannel.invokeMethod('setPrintStyle');
   }
 
-  void printDensityLevel(int printDensityLevel){
+  void setPrintDensity(int printDensityLevel){
     Map<String, int> params = Map<String, int>();
     params['printDensityLevel'] = printDensityLevel;
     print('dart:printDensityLevel'+printDensityLevel.toString());
-    _methodChannel.invokeMethod('printDensityLevel',params);
+    _methodChannel.invokeMethod('setPrintDensity',params);
   }
 
   void printText(String text){
