@@ -69,7 +69,7 @@ public class PosPrinterPluginHandler {
 
     public static void setPrintDensity(int printDensityLevel){
         try {
-            mPrinter.setPrintDensity(printDensityLevel);
+            mPrinter.setPrinterDensity(printDensityLevel);
         } catch (Exception e) {
             e.printStackTrace();
         }
