@@ -3,7 +3,7 @@ package com.dspread.flutter_printer_qpos;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-
+import android.app.Activity;
 import androidx.annotation.NonNull;
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
@@ -12,9 +12,11 @@ import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
+import io.flutter.embedding.engine.plugins.activity.ActivityAware;
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
 
 /** FlutterPrinterQposPlugin */
-public class FlutterPrinterQposPlugin implements FlutterPlugin, MethodCallHandler,EventChannel.StreamHandler {
+public class FlutterPrinterQposPlugin implements FlutterPlugin, ActivityAware, MethodCallHandler,EventChannel.StreamHandler {
   /// The MethodChannel that will the communication between Flutter and native Android
   ///
   /// This local reference serves to register the plugin with the Flutter Engine and unregister it
@@ -22,11 +24,34 @@ public class FlutterPrinterQposPlugin implements FlutterPlugin, MethodCallHandle
   private Context mContext;
   private MethodChannel methodChannel;
   private EventChannel eventChannel;
-
+  private Activity activity;
   public FlutterPrinterQposPlugin(){
 
   }
 
+  @Override
+  public void onAttachedToActivity(ActivityPluginBinding binding) {
+    // 获取 activity
+    activity = binding.getActivity();
+  }
+
+  @Override
+  public void onDetachedFromActivity() {
+    // activity 销毁时的处理
+    activity = null;
+  }
+
+  @Override
+  public void onReattachedToActivityForConfigChanges(ActivityPluginBinding binding) {
+    // 重新绑定到 activity，例如横竖屏切换
+    activity = binding.getActivity();
+  }
+
+  @Override
+  public void onDetachedFromActivityForConfigChanges() {
+    // activity 销毁时的处理，例如横竖屏切换
+    activity = null;
+  }
 
   @Override
   public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
@@ -38,29 +63,25 @@ public class FlutterPrinterQposPlugin implements FlutterPlugin, MethodCallHandle
     eventChannel.setStreamHandler(this);
     methodChannel.setMethodCallHandler(this);
   }
-
   @Override
   public void onListen(Object arguments, EventChannel.EventSink events) {
     TRACE.d("onListen");
     PosPrinterPluginHandler.initEventSender(events, arguments);
-
   }
 
   @Override
   public void onCancel(Object arguments) {
     TRACE.d("onCancel");
-
   }
 
   @Override
   public void onMethodCall(@NonNull MethodCall call, @NonNull Result result) {
     TRACE.d("FlutterPrinterQposPlugin：onMethodCall" + call.method);
-
     if (call.method.equals("getPlatformVersion")) {
       result.success("Android " + android.os.Build.VERSION.RELEASE);
     } else if(call.method.equals("initPrinter")){
       TRACE.d("initPrinter");
-      PosPrinterPluginHandler.initPrinter(mContext);
+      PosPrinterPluginHandler.initPrinter(activity);
     } else if(call.method.equals("setAlign")){
       TRACE.d("setAlign");
       String align = call.argument("align");
