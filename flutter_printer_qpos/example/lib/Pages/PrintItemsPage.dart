@@ -122,7 +122,6 @@ class _PrintState extends State<PrintItemsPage> {
     _flutterPrinterQpos.setFontSize(16);
     _flutterPrinterQpos.setFontStyle(FontStyle.NORMAL.name);
     _flutterPrinterQpos.setPrintStyle();
-
     _flutterPrinterQpos.printText("123123123");
   }
 
@@ -164,7 +163,7 @@ class _PrintState extends State<PrintItemsPage> {
         "16", FontStyle.NORMAL.index.toString());
     _flutterPrinterQpos.addtext("COPIA");
 
-    final ByteData bytes = await rootBundle.load('configs/pos.png');
+    final ByteData bytes = await rootBundle.load('configs/pos_picture.png');
     final bitmip = bytes.buffer.asUint8List(0);
     _flutterPrinterQpos.addBitmap(bitmip);
 
@@ -246,8 +245,8 @@ class _PrintState extends State<PrintItemsPage> {
         PrintLine.LEFT.index.toString(), "14", FontStyle.NORMAL.index.toString());
     _flutterPrinterQpos.addtext("IM21081619398D322149946A79B66");
 
-    _flutterPrinterQpos.addtext("");
-
+    _flutterPrinterQpos.addtext("                                                ");
+    _flutterPrinterQpos.addtext("                                                ");
     _flutterPrinterQpos.printReceipt();
   }
 

@@ -177,8 +177,8 @@ public class PosPrinterPluginHandler {
 
     public static void addBitmap(Bitmap bitmap) {
         try {
-            Bitmap  bitmapSmall = setImgSize(bitmap,10);
-            mPrinter.addBitmap(bitmapSmall);
+//            Bitmap  bitmapSmall = setImgSize(bitmap,10);
+            mPrinter.addBitmap(bitmap);
         } catch (Exception e) {
             e.printStackTrace();
         }
