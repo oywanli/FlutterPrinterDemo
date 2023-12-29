@@ -61,6 +61,9 @@ flutter:
   assets:
     - configs/test.png
     - configs/demo.jpg
+    - configs/pos.png
+    - configs/pos_image.jpg
+    - configs/phone.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware.

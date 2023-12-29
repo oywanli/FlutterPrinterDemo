@@ -11,25 +11,23 @@ import 'package:flutter_printer_qpos/QPOSPrintModel.dart';
 
 import '../Utils.dart';
 
-
-
 class PrintItemsPage extends StatefulWidget {
   @override
   _PrintState createState() => _PrintState();
-
 }
 
 class _PrintState extends State<PrintItemsPage> {
   FlutterPrinterQpos _flutterPrinterQpos = FlutterPrinterQpos();
   StreamSubscription? _subscription;
+
   @override
   void initState() {
     super.initState();
     _flutterPrinterQpos.initPrinter();
-    _subscription =
-        _flutterPrinterQpos.onPosPrintListenerCalled!.listen((QPOSPrintModel datas) {
-          parasPrintListener(datas);
-        });
+    _subscription = _flutterPrinterQpos.onPosPrintListenerCalled!
+        .listen((QPOSPrintModel datas) {
+      parasPrintListener(datas);
+    });
   }
 
   @override
@@ -47,14 +45,12 @@ class _PrintState extends State<PrintItemsPage> {
     Widget buttonSection = Container(
       child: Column(
         children: [
-
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               minimumSize: const Size(250, 40),
-            shape: const StadiumBorder(),
-            textStyle: const TextStyle(fontSize: 18),
-          ),
-
+              shape: const StadiumBorder(),
+              textStyle: const TextStyle(fontSize: 18),
+            ),
             onPressed: () async {
               printText();
             },
@@ -92,6 +88,17 @@ class _PrintState extends State<PrintItemsPage> {
               printPicture();
             },
             child: Text("Print Picture"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(250, 40),
+              shape: const StadiumBorder(),
+              textStyle: const TextStyle(fontSize: 18),
+            ),
+            onPressed: () async {
+              printReceipt();
+            },
+            child: Text("Print Receipt"),
           )
         ],
       ),
@@ -108,8 +115,6 @@ class _PrintState extends State<PrintItemsPage> {
             padding: const EdgeInsets.all(5.0),
           )),
     );
-
-
   }
 
   void printText() {
@@ -122,11 +127,13 @@ class _PrintState extends State<PrintItemsPage> {
   }
 
   void printBarcode() {
-    _flutterPrinterQpos.printBarCode(Symbology.CODE_128.name, "400", "100", "test123", PrintLine.CENTER.name);
+    _flutterPrinterQpos.printBarCode(Symbology.CODE_128.name, "400", "100",
+        "test123", PrintLine.CENTER.name);
   }
 
   void printQRcode() {
-    _flutterPrinterQpos.printQRCode(ErrorLevel.L.name, "300", "test123", PrintLine.CENTER.name);
+    _flutterPrinterQpos.printQRCode(
+        ErrorLevel.L.name, "300", "test123", PrintLine.CENTER.name);
   }
 
   Future<void> printPicture() async {
@@ -139,6 +146,111 @@ class _PrintState extends State<PrintItemsPage> {
     _flutterPrinterQpos.printBitmap(bitmip);
   }
 
+  Future<void> printReceipt() async {
+    _flutterPrinterQpos.addPrintLintStyle(PrintLine.CENTER.index.toString(),
+        "16", FontStyle.BOLD.index.toString());
+    _flutterPrinterQpos.addtext("DSPREAD");
+
+    _flutterPrinterQpos.addPrintLintStyle(PrintLine.CENTER.index.toString(),
+        "12", FontStyle.BOLD.index.toString());
+    _flutterPrinterQpos.addtext("DSPREAD Technologies de Mexico, sapi de cv");
+    _flutterPrinterQpos.addtext("Tel.(33) 2005 - 0207");
+
+    _flutterPrinterQpos
+        .addtext("Av. San Miguel 38, San Juan de Ocotn, C.P.45019.");
+    _flutterPrinterQpos.addtext("Zapopan, Jalisco, Mexico.");
+
+    _flutterPrinterQpos.addPrintLintStyle(PrintLine.CENTER.index.toString(),
+        "16", FontStyle.NORMAL.index.toString());
+    _flutterPrinterQpos.addtext("COPIA");
+
+    final ByteData bytes = await rootBundle.load('configs/pos.png');
+    final bitmip = bytes.buffer.asUint8List(0);
+    _flutterPrinterQpos.addBitmap(bitmip);
+
+    _flutterPrinterQpos.addPrintLintStyle(PrintLine.CENTER.index.toString(),
+        "16", FontStyle.BOLD.index.toString());
+    _flutterPrinterQpos.addtext("V E N T A  C H I P");
+
+    _flutterPrinterQpos.addPrintLintStyle(PrintLine.CENTER.index.toString(),
+        "12", FontStyle.NORMAL.index.toString());
+    _flutterPrinterQpos.addtext("12/21/2023");
+
+    _flutterPrinterQpos.addtext("- - - - - - - - - - - - - - - - - - - - - - - - - ");
+
+    _flutterPrinterQpos.addPrintLintStyle(PrintLine.CENTER.index.toString(),
+        "18", FontStyle.BOLD.index.toString());
+    _flutterPrinterQpos.addtext("Pata Salada");
+
+    _flutterPrinterQpos.addPrintLintStyle(PrintLine.CENTER.index.toString(),
+        "14", FontStyle.NORMAL.index.toString());
+    _flutterPrinterQpos.addtext("CALLE SAN JORGE 227, RESIDENCIA");
+
+    _flutterPrinterQpos.addtext("CONJUNTO PATRIA,45160 Zapopan, Jalisco.");
+
+    _flutterPrinterQpos.addtext("Mxico");
+
+    _flutterPrinterQpos.addPrintLintStyle(PrintLine.CENTER.index.toString(),
+        "16", FontStyle.BOLD.index.toString());
+
+    _flutterPrinterQpos.addtext("VENTA");
+
+    _flutterPrinterQpos.addPrintLintStyle(PrintLine.CENTER.index.toString(),
+        "14", FontStyle.NORMAL.index.toString());
+
+    _flutterPrinterQpos.addtext("No.de Terminal .44444444");
+
+    _flutterPrinterQpos.addtext("No.Afiliacidn -7659945");
+
+    _flutterPrinterQpos.addtext("- - - - - - - - - - - - - - - - - - - - - - - - - ");
+
+    _flutterPrinterQpos.addTexts("No. de tarjeta", "Vigencia", "1", "1",
+        PrintLine.LEFT.index.toString(), PrintLine.RIGHT.index.toString());
+
+    _flutterPrinterQpos.addTexts("6467", "01/30", "1", "1",
+        PrintLine.LEFT.index.toString(), PrintLine.RIGHT.index.toString());
+
+    _flutterPrinterQpos.addtext("-  - - - - - - - - - - - - - - - - - - - - - - - ");
+
+    _flutterPrinterQpos.addPrintLintStyle(PrintLine.CENTER.index.toString(),
+        "18", FontStyle.BOLD.index.toString());
+
+    _flutterPrinterQpos.addtext("Transaccion Aprobada");
+
+    _flutterPrinterQpos.addPrintLintStyle(PrintLine.LEFT.index.toString(), "14",
+        FontStyle.NORMAL.index.toString());
+
+    _flutterPrinterQpos.addtext("DEBITOVISA------");
+
+    _flutterPrinterQpos.addPrintLintStyle(PrintLine.LEFT.index.toString(), "14",
+        FontStyle.NORMAL.index.toString());
+
+    _flutterPrinterQpos.addtext("BANCOMER");
+
+    _flutterPrinterQpos.addPrintLintStyle(PrintLine.LEFT.index.toString(), "14",
+        FontStyle.NORMAL.index.toString());
+
+    _flutterPrinterQpos.addtext("AUT: 290307");
+
+    _flutterPrinterQpos.addPrintLintStyle(PrintLine.LEFT.index.toString(), "14",
+        FontStyle.NORMAL.index.toString());
+
+    _flutterPrinterQpos.addtext("REF:920567812703");
+
+    _flutterPrinterQpos.addPrintLintStyle(
+        PrintLine.LEFT.index.toString(), "14", FontStyle.NORMAL.index.toString());
+
+    _flutterPrinterQpos.addtext("NUMCONTROL:");
+
+    _flutterPrinterQpos.addPrintLintStyle(
+        PrintLine.LEFT.index.toString(), "14", FontStyle.NORMAL.index.toString());
+    _flutterPrinterQpos.addtext("IM21081619398D322149946A79B66");
+
+    _flutterPrinterQpos.addtext("");
+
+    _flutterPrinterQpos.printReceipt();
+  }
+
   void parasPrintListener(QPOSPrintModel datas) {
     String? method = datas.method;
     List<String> paras = new List.empty();
@@ -148,10 +260,9 @@ class _PrintState extends State<PrintItemsPage> {
     }
 
     if (method == "printResult") {
-      print("printResult:"+parameters!);
+      print("printResult:" + parameters!);
     } else {
-      print("method:"+method!);
+      print("method:" + method!);
     }
   }
-
 }

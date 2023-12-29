@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -44,9 +43,11 @@ class FlutterPrinterQpos {
 
   factory FlutterPrinterQpos(){
     if (_instance == null) {
-      final MethodChannel methodChannel = const MethodChannel('flutter_printer_qpos');
+      final MethodChannel methodChannel = const MethodChannel(
+          'flutter_printer_qpos');
 
-      final EventChannel eventChannel = const EventChannel('flutter_printer_qpos_event');
+      final EventChannel eventChannel = const EventChannel(
+          'flutter_printer_qpos_event');
 
       _instance = FlutterPrinterQpos.private(methodChannel, eventChannel);
     }
@@ -61,7 +62,7 @@ class FlutterPrinterQpos {
   Stream<QPOSPrintModel>? _onPosPrintListenerCalled;
 
   Stream<QPOSPrintModel>? get onPosPrintListenerCalled {
-    if(_onPosPrintListenerCalled == null) {
+    if (_onPosPrintListenerCalled == null) {
       _onPosPrintListenerCalled = _eventChannel
           .receiveBroadcastStream()
           .map((dynamic event) => _parsePosPrintListenerCall(event));
@@ -84,76 +85,131 @@ class FlutterPrinterQpos {
   @visibleForTesting
   FlutterPrinterQpos.private(this._methodChannel, this._eventChannel);
 
-  void initPrinter(){
+  void initPrinter() {
     _methodChannel.invokeMethod('initPrinter');
   }
 
-  void setAlign(String align){
+  void setAlign(String align) {
     Map<String, String> params = Map<String, String>();
     params['align'] = align;
-    print('dart:setAlign'+align);
-    _methodChannel.invokeMethod('setAlign',params);
+    print('dart:setAlign' + align);
+    _methodChannel.invokeMethod('setAlign', params);
   }
 
-  void setFontStyle(String bold){
+  void setFontStyle(String bold) {
     Map<String, String> params = Map<String, String>();
     params['bold'] = bold;
-    print('dart:setFontStyle'+bold);
-    _methodChannel.invokeMethod('setFontStyle',params);
+    print('dart:setFontStyle' + bold);
+    _methodChannel.invokeMethod('setFontStyle', params);
   }
 
-  void setFontSize(int fontsize){
+  void setFontSize(int fontsize) {
     Map<String, int> params = Map<String, int>();
     params['fontsize'] = fontsize;
-    print('dart:setFontSize'+fontsize.toString());
-    _methodChannel.invokeMethod('setFontSize',params);
+    print('dart:setFontSize' + fontsize.toString());
+    _methodChannel.invokeMethod('setFontSize', params);
   }
 
-  void setPrintStyle(){
+  void setPrintStyle() {
     print('dart:setFontSize');
     _methodChannel.invokeMethod('setPrintStyle');
   }
 
-  void setPrintDensity(int printDensityLevel){
+  void setPrintDensity(int printDensityLevel) {
     Map<String, int> params = Map<String, int>();
     params['printDensityLevel'] = printDensityLevel;
-    print('dart:printDensityLevel'+printDensityLevel.toString());
-    _methodChannel.invokeMethod('setPrintDensity',params);
+    print('dart:printDensityLevel' + printDensityLevel.toString());
+    _methodChannel.invokeMethod('setPrintDensity', params);
   }
 
-  void printText(String text){
+  void printText(String text) {
     Map<String, String> params = Map<String, String>();
     params['text'] = text;
-    print('dart:printText'+text);
-    _methodChannel.invokeMethod('printText',params);
+    print('dart:printText' + text);
+    _methodChannel.invokeMethod('printText', params);
   }
 
-  void printBarCode(String symbology, String width, String height,String content,String position){
+  void printBarCode(String symbology, String width, String height,
+      String content, String position) {
     Map<String, String> params = Map<String, String>();
     params['symbology'] = symbology;
     params['width'] = width;
     params['height'] = height;
     params['content'] = content;
     params['position'] = position;
-    print('dart:printBarCode'+symbology+" "+width+" "+height+" "+content+" "+position);
-    _methodChannel.invokeMethod('printBarCode',params);
+    print('dart:printBarCode' + symbology + " " + width + " " + height + " " +
+        content + " " + position);
+    _methodChannel.invokeMethod('printBarCode', params);
   }
 
-  void printQRCode(String errorLevel, String width, String content,String position){
+  void printQRCode(String errorLevel, String width, String content,
+      String position) {
     Map<String, String> params = Map<String, String>();
     params['errorLevel'] = errorLevel;
     params['width'] = width;
     params['content'] = content;
     params['position'] = position;
-    print('dart:printQRCode'+errorLevel+" "+width+" "+content+" "+position);
-    _methodChannel.invokeMethod('printQRCode',params);
+    print('dart:printQRCode' + errorLevel + " " + width + " " + content + " " +
+        position);
+    _methodChannel.invokeMethod('printQRCode', params);
   }
 
-  void printBitmap(Uint8List bitmap){
+  void printBitmap(Uint8List bitmap) {
     Map<String, Uint8List> params = Map<String, Uint8List>();
     params['bitmap'] = bitmap;
-    print('dart:printText'+bitmap.toString());
-    _methodChannel.invokeMethod('printBitmap',params);
+    print('dart:printText' + bitmap.toString());
+    _methodChannel.invokeMethod('printBitmap', params);
+  }
+
+
+  void addtext(String text) {
+    Map<String, String> params = Map<String, String>();
+    params['text'] = text;
+    print('dart:addtext' + text.toString());
+    _methodChannel.invokeMethod('addText', params);
+  }
+
+
+  void addTexts(String text1, String text2, String row1, String row2,
+      String position1, String position2) {
+    Map<String, String> params = Map<String, String>();
+    params['textLeft'] = text1;
+    params['textRight'] = text2;
+    params['rowLeft'] = row1;
+    params['rowRight'] = row2;
+    params['positionLeft'] = position1;
+    params['positionRight'] = position2;
+    print('dart:addTexts' + params.toString());
+    _methodChannel.invokeMethod('addTexts', params);
+  }
+
+
+  void addBitmap(Uint8List bitmap) {
+    Map<String, Uint8List> params = Map<String, Uint8List>();
+    params['bitmap'] = bitmap;
+    print('dart:addBitmap' + bitmap.toString());
+    _methodChannel.invokeMethod('addBitmap', params);
+  }
+
+
+  void printReceipt() {
+    _methodChannel.invokeMethod('print');
+  }
+
+  void  setFooter(int height){
+    Map<String, int> params = Map<String, int>();
+    params['height'] = height;
+    print('dart:setFooter' + params.toString());
+    _methodChannel.invokeMethod('setFooter',params);
+  }
+
+  void addPrintLintStyle(String align, String fontSize, String fontstyle) {
+    Map<String, String> params = Map<String, String>();
+    params['align'] = align;
+    params['fontSize'] = fontSize; //fontstyle
+    params['fontstyle'] = fontstyle; //fontstyle
+    print('dart:addPrintLintStyle' + params.toString());
+    _methodChannel.invokeMethod('addPrintLintStyle', params);
   }
 
 
