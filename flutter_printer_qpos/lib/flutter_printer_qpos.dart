@@ -196,11 +196,11 @@ class FlutterPrinterQpos {
     _methodChannel.invokeMethod('print');
   }
 
-  void  setFooter(int height){
+  void setFooter(int height) {
     Map<String, int> params = Map<String, int>();
     params['height'] = height;
     print('dart:setFooter' + params.toString());
-    _methodChannel.invokeMethod('setFooter',params);
+    _methodChannel.invokeMethod('setFooter', params);
   }
 
   void addPrintLintStyle(String align, String fontSize, String fontstyle) {
@@ -212,5 +212,16 @@ class FlutterPrinterQpos {
     _methodChannel.invokeMethod('addPrintLintStyle', params);
   }
 
+  void playSound() {
+    _methodChannel.invokeMethod('playSound');
+  }
+
+  void stopSound() {
+    _methodChannel.invokeMethod('stopSound');
+  }
+
+  void releaseSound() {
+    _methodChannel.invokeMethod('releaseSound');
+  }
 
 }

@@ -27,6 +27,9 @@ public class PosPrinterPluginHandler {
     private static MyPrinterListener myPrinterListener = new MyPrinterListener();
     static EventChannel.EventSink mEvents;
 
+    private static AlertSoundPlayer soundPlayer;
+
+
     public static void initEventSender(EventChannel.EventSink events, Object arguments) {
         TRACE.d("initEventSender");
 
@@ -41,6 +44,30 @@ public class PosPrinterPluginHandler {
         mPrinter.initPrinter(mContext);
         mPrinter.setPrintListener(myPrinterListener);
         printLineStyle = new PrintLineStyle();
+
+
+        soundPlayer = new AlertSoundPlayer(mContext);
+        soundPlayer.init();
+    }
+
+
+    public static void playSound() {
+        if (soundPlayer != null) {
+            soundPlayer.play(99, 50);
+        }
+    }
+
+    public static void stopSound() {
+        if (soundPlayer != null) {
+            soundPlayer.stop();
+        }
+    }
+
+    public static void releaseSound() {
+        if (soundPlayer != null) {
+            soundPlayer.stop();
+            soundPlayer.release();
+        }
     }
 
 
@@ -194,7 +221,7 @@ public class PosPrinterPluginHandler {
     }
 
 
-    public static  Bitmap setImgSize(Bitmap bm, float scale) {
+    public static Bitmap setImgSize(Bitmap bm, float scale) {
         // 获得图片的宽高.
         int width = bm.getWidth();
         int height = bm.getHeight();

@@ -8,7 +8,6 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter_printer_qpos/flutter_printer_qpos.dart';
 import 'package:flutter_printer_qpos/QPOSPrintModel.dart';
-
 import '../Utils.dart';
 
 class PrintItemsPage extends StatefulWidget {
@@ -37,6 +36,7 @@ class _PrintState extends State<PrintItemsPage> {
     if (_subscription != null) {
       _subscription!.cancel();
     }
+    disposeSound();
   }
 
   @override
@@ -175,7 +175,8 @@ class _PrintState extends State<PrintItemsPage> {
         "12", FontStyle.NORMAL.index.toString());
     _flutterPrinterQpos.addtext("12/21/2023");
 
-    _flutterPrinterQpos.addtext("- - - - - - - - - - - - - - - - - - - - - - - - - ");
+    _flutterPrinterQpos
+        .addtext("- - - - - - - - - - - - - - - - - - - - - - - - - ");
 
     _flutterPrinterQpos.addPrintLintStyle(PrintLine.CENTER.index.toString(),
         "18", FontStyle.BOLD.index.toString());
@@ -201,7 +202,8 @@ class _PrintState extends State<PrintItemsPage> {
 
     _flutterPrinterQpos.addtext("No.Afiliacidn -7659945");
 
-    _flutterPrinterQpos.addtext("- - - - - - - - - - - - - - - - - - - - - - - - - ");
+    _flutterPrinterQpos
+        .addtext("- - - - - - - - - - - - - - - - - - - - - - - - - ");
 
     _flutterPrinterQpos.addTexts("No. de tarjeta", "Vigencia", "1", "1",
         PrintLine.LEFT.index.toString(), PrintLine.RIGHT.index.toString());
@@ -209,7 +211,8 @@ class _PrintState extends State<PrintItemsPage> {
     _flutterPrinterQpos.addTexts("6467", "01/30", "1", "1",
         PrintLine.LEFT.index.toString(), PrintLine.RIGHT.index.toString());
 
-    _flutterPrinterQpos.addtext("-  - - - - - - - - - - - - - - - - - - - - - - - ");
+    _flutterPrinterQpos
+        .addtext("-  - - - - - - - - - - - - - - - - - - - - - - - ");
 
     _flutterPrinterQpos.addPrintLintStyle(PrintLine.CENTER.index.toString(),
         "18", FontStyle.BOLD.index.toString());
@@ -236,17 +239,19 @@ class _PrintState extends State<PrintItemsPage> {
 
     _flutterPrinterQpos.addtext("REF:920567812703");
 
-    _flutterPrinterQpos.addPrintLintStyle(
-        PrintLine.LEFT.index.toString(), "14", FontStyle.NORMAL.index.toString());
+    _flutterPrinterQpos.addPrintLintStyle(PrintLine.LEFT.index.toString(), "14",
+        FontStyle.NORMAL.index.toString());
 
     _flutterPrinterQpos.addtext("NUMCONTROL:");
 
-    _flutterPrinterQpos.addPrintLintStyle(
-        PrintLine.LEFT.index.toString(), "14", FontStyle.NORMAL.index.toString());
+    _flutterPrinterQpos.addPrintLintStyle(PrintLine.LEFT.index.toString(), "14",
+        FontStyle.NORMAL.index.toString());
     _flutterPrinterQpos.addtext("IM21081619398D322149946A79B66");
 
-    _flutterPrinterQpos.addtext("                                                ");
-    _flutterPrinterQpos.addtext("                                                ");
+    _flutterPrinterQpos
+        .addtext("                                                ");
+    _flutterPrinterQpos
+        .addtext("                                                ");
     _flutterPrinterQpos.printReceipt();
   }
 
@@ -257,11 +262,51 @@ class _PrintState extends State<PrintItemsPage> {
     if (parameters != null && parameters.length > 0) {
       paras = parameters.split("||");
     }
-
     if (method == "printResult") {
       print("printResult:" + parameters!);
+      String isSuccess = paras.elementAt(0);
+      String status = paras.elementAt(1);
+      print("printResult status:" + status);
+      if (isSuccess == "false") {
+        playSound();
+        showCupertinoDialogSure(status);
+      }
     } else {
       print("method:" + method!);
     }
+  }
+
+  void showCupertinoDialogSure(status) {
+    var dialog = CupertinoAlertDialog(
+      title: Text('Printer Tip', style: TextStyle(fontSize: 20)),
+      content: Text(
+        status,
+        style: TextStyle(fontSize: 16),
+      ),
+      actions: <Widget>[
+        CupertinoButton(
+          child: Text("Close"),
+          onPressed: () {
+            Navigator.pop(context);
+            stopSound();
+          },
+        ),
+      ],
+    );
+
+    showDialog(
+        barrierDismissible: false, context: context, builder: (_) => dialog);
+  }
+
+  void playSound() {
+    _flutterPrinterQpos.playSound();
+  }
+
+  void stopSound() {
+    _flutterPrinterQpos.stopSound();
+  }
+
+  void disposeSound() {
+    _flutterPrinterQpos.releaseSound();
   }
 }

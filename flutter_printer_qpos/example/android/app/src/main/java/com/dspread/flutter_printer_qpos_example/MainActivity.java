@@ -8,7 +8,13 @@ public class MainActivity extends FlutterActivity {
     @Override
     public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
         flutterEngine.getPlugins().add(new com.dspread.flutter_printer_qpos.FlutterPrinterQposPlugin());
-
 //    GeneratedPluginRegistrant.registerWith(flutterEngine,this);
+    }
+    @Override
+    protected void onDestroy() {
+        try {
+            super.onDestroy();
+        } catch (Exception e) {
+        }
     }
 }
