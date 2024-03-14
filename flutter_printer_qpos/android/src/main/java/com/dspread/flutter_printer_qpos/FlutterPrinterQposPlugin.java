@@ -159,13 +159,7 @@ public class FlutterPrinterQposPlugin implements FlutterPlugin, ActivityAware, M
         } else if (call.method.equals("setFooter")) {
             int height = Integer.parseInt(call.argument("height"));
             PosPrinterPluginHandler.setFooter(height);
-        } else if (call.method.equals("playSound")) {
-            PosPrinterPluginHandler.playSound();
-        } else if (call.method.equals("stopSound")) {
-            PosPrinterPluginHandler.stopSound();
-        } else if (call.method.equals("releaseSound")) {
-            PosPrinterPluginHandler.releaseSound();
-        } else {
+        }else {
             result.notImplemented();
         }
     }

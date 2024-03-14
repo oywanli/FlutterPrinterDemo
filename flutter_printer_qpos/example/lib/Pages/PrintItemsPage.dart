@@ -36,7 +36,6 @@ class _PrintState extends State<PrintItemsPage> {
     if (_subscription != null) {
       _subscription!.cancel();
     }
-    disposeSound();
   }
 
   @override
@@ -267,10 +266,6 @@ class _PrintState extends State<PrintItemsPage> {
       String isSuccess = paras.elementAt(0);
       String status = paras.elementAt(1);
       print("printResult status:" + status);
-      if (isSuccess == "false") {
-        playSound();
-        showCupertinoDialogSure(status);
-      }
     } else {
       print("method:" + method!);
     }
@@ -288,7 +283,6 @@ class _PrintState extends State<PrintItemsPage> {
           child: Text("Close"),
           onPressed: () {
             Navigator.pop(context);
-            stopSound();
           },
         ),
       ],
@@ -296,17 +290,5 @@ class _PrintState extends State<PrintItemsPage> {
 
     showDialog(
         barrierDismissible: false, context: context, builder: (_) => dialog);
-  }
-
-  void playSound() {
-    _flutterPrinterQpos.playSound();
-  }
-
-  void stopSound() {
-    _flutterPrinterQpos.stopSound();
-  }
-
-  void disposeSound() {
-    _flutterPrinterQpos.releaseSound();
   }
 }
