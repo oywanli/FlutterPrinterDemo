@@ -73,10 +73,11 @@ packages:
   flutter_printer_qpos:
     dependency: "direct main"
     description:
-      path: ".."
-      relative: true
-    source: path
-    version: "0.0.2"
+      name: flutter_printer_qpos
+      sha256: "93bb0a8565d4bae9b9d53f8bbe487da39f82f215f8028bd25c6d5de5ce1aabb3"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "0.0.4"
   flutter_test:
     dependency: "direct dev"
     description: flutter

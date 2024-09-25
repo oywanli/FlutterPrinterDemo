@@ -39,6 +39,17 @@ enum ErrorLevel {
 }
 
 
+
+enum Barcode2D {
+  QR_CODE
+}
+
+
+enum Barcode1D {
+  CODE_128,
+  CODABAR
+}
+
 class FlutterPrinterQpos {
 
   factory FlutterPrinterQpos(){
@@ -189,6 +200,28 @@ class FlutterPrinterQpos {
     params['bitmap'] = bitmap;
     print('dart:addBitmap' + bitmap.toString());
     _methodChannel.invokeMethod('addBitmap', params);
+  }
+
+  void addQRCode(String size, String qrName, String context, String position){
+    Map<String, String> params = Map<String, String>();
+    params['size'] = size;
+    params['qrName'] = qrName;
+    params['context'] = context;
+    params['position'] = position;
+    print('dart:addQRCode' + params.toString());
+    _methodChannel.invokeMethod('addQRCode', params);
+  }
+
+
+  void addBarCode(String BarName, String width, String height,String context, String position){
+    Map<String, String> params = Map<String, String>();
+    params['BarName'] = BarName;
+    params['width'] = width;
+    params['height'] = height;
+    params['context'] = context;
+    params['position'] = position;
+    print('dart:addBarCode' + params.toString());
+    _methodChannel.invokeMethod('addBarCode', params);
   }
 
 

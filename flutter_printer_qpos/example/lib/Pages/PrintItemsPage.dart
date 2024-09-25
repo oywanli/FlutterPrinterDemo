@@ -221,6 +221,7 @@ class _PrintState extends State<PrintItemsPage> {
     _flutterPrinterQpos.addPrintLintStyle(PrintLine.LEFT.index.toString(), "14",
         FontStyle.NORMAL.index.toString());
 
+
     _flutterPrinterQpos.addtext("DEBITOVISA------");
 
     _flutterPrinterQpos.addPrintLintStyle(PrintLine.LEFT.index.toString(), "14",
@@ -246,14 +247,14 @@ class _PrintState extends State<PrintItemsPage> {
     _flutterPrinterQpos.addPrintLintStyle(PrintLine.LEFT.index.toString(), "14",
         FontStyle.NORMAL.index.toString());
     _flutterPrinterQpos.addtext("IM21081619398D322149946A79B66");
-
+    _flutterPrinterQpos.addQRCode("300", Barcode2D.QR_CODE.name, "123", PrintLine.CENTER.index.toString());
+    _flutterPrinterQpos.addBarCode(Barcode1D.CODE_128.name, "400", "100", "context", PrintLine.CENTER.index.toString());
     _flutterPrinterQpos
         .addtext("                                                ");
     _flutterPrinterQpos
         .addtext("                                                ");
     _flutterPrinterQpos.printReceipt();
   }
-
   void parasPrintListener(QPOSPrintModel datas) {
     String? method = datas.method;
     List<String> paras = new List.empty();

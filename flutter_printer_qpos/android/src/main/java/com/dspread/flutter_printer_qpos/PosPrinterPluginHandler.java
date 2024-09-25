@@ -192,6 +192,22 @@ public class PosPrinterPluginHandler {
         }
     }
 
+    public static void addQRCode(int size, String qrName, String context, int position) {
+        try {
+            mPrinter.addQRCode(size, qrName, context, position);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void addBarCode(Context context, String barName, int width, int height,String content, int position) {
+        try {
+            mPrinter.addBarCode(context,barName,width,height,content,position);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
 
     public static Bitmap setImgSize(Bitmap bm, float scale) {
         // 获得图片的宽高.

@@ -159,6 +159,19 @@ public class FlutterPrinterQposPlugin implements FlutterPlugin, ActivityAware, M
         } else if (call.method.equals("setFooter")) {
             int height = Integer.parseInt(call.argument("height"));
             PosPrinterPluginHandler.setFooter(height);
+        }else if (call.method.equals("addQRCode")){
+            int size = Integer.parseInt(call.argument("size"));
+            String qrName = call.argument("qrName");
+            String context = call.argument("context");
+            int position = Integer.parseInt(call.argument("position"));
+            PosPrinterPluginHandler.addQRCode(size,qrName,context,position);
+        }else if(call.method.equals("addBarCode")){
+            String barName = call.argument("BarName");
+            int width = Integer.parseInt(call.argument("width"));
+            int height = Integer.parseInt(call.argument("height"));
+            String context = call.argument("context");
+            int position = Integer.parseInt(call.argument("position"));
+            PosPrinterPluginHandler.addBarCode(activity,barName, width, height,context, position);
         }else {
             result.notImplemented();
         }
