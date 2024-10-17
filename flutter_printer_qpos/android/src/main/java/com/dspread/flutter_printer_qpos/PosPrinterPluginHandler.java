@@ -11,6 +11,10 @@ import com.dspread.print.device.PrinterManager;
 import com.dspread.print.device.bean.PrintLineStyle;
 import com.dspread.print.widget.PrintLine;
 
+import com.dspread.print.widget.BitmapPrintLine;
+import com.dspread.print.widget.PrintLine;
+import com.dspread.print.widget.PrinterLayout;
+
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -130,7 +134,11 @@ public class PosPrinterPluginHandler {
 
     public static void printBitmap(Bitmap bitmap) {
         try {
-            mPrinter.printBitmap(mContext, bitmap);
+            PrinterLayout printerLayout = new PrinterLayout(mContext);
+            BitmapPrintLine bitmapPrintLine = new BitmapPrintLine(bitmap, PrintLine.CENTER, true);
+            printerLayout.addBitmap(bitmapPrintLine);
+            Bitmap bitmap1 = printerLayout.viewToBitmap();
+            mPrinter.printBitmap(mContext, bitmap1);
         } catch (Exception e) {
             e.printStackTrace();
         }

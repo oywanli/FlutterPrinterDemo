@@ -119,9 +119,9 @@ class _PrintState extends State<PrintItemsPage> {
   void printText() {
     _flutterPrinterQpos.setAlign(PrintLine.CENTER.name);
     _flutterPrinterQpos.setFontSize(16);
-    _flutterPrinterQpos.setFontStyle(FontStyle.NORMAL.name);
+    _flutterPrinterQpos.setFontStyle(FontStyle.BOLD.name);
     _flutterPrinterQpos.setPrintStyle();
-    _flutterPrinterQpos.printText("123123123");
+    _flutterPrinterQpos.printText("12312312345678");
   }
 
   void printBarcode() {
@@ -136,9 +136,8 @@ class _PrintState extends State<PrintItemsPage> {
 
   Future<void> printPicture() async {
     // final ByteData bytes = await rootBundle.load('assets/images/1/image.jpg');
-    final ByteData bytes = await rootBundle.load('configs/demo.jpg');
+    final ByteData bytes = await rootBundle.load('configs/test_store.jpg');
     final bitmip = bytes.buffer.asUint8List(0);
-
     _flutterPrinterQpos.printBitmap(bitmip);
   }
 

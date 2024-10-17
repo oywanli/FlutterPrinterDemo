@@ -15,14 +15,10 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
-  flutter_printer_qpos: ^0.0.4
+  flutter_printer_qpos: ^0.0.5
   flutter:
     sdk: flutter
 
-
-
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.2
 
 dev_dependencies:
@@ -59,6 +55,7 @@ flutter:
     - configs/pos_image.jpg
     - configs/phone.png
     - configs/pos_picture.png
+    - configs/test_store.jpg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware.
