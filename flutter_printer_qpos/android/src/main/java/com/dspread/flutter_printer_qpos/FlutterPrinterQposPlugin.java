@@ -16,6 +16,8 @@ import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.embedding.engine.plugins.activity.ActivityAware;
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
 
+import com.dspread.flutter_printer_qpos.TRACE;
+
 /**
  * FlutterPrinterQposPlugin
  */
@@ -87,6 +89,9 @@ public class FlutterPrinterQposPlugin implements FlutterPlugin, ActivityAware, M
         } else if (call.method.equals("initPrinter")) {
             TRACE.d("initPrinter");
             PosPrinterPluginHandler.initPrinter(activity);
+        } else if (call.method.equals("close")) {
+            TRACE.d("close");
+            PosPrinterPluginHandler.close();
         } else if (call.method.equals("setAlign")) {
             TRACE.d("setAlign");
             String align = call.argument("align");

@@ -98,6 +98,17 @@ class _PrintState extends State<PrintItemsPage> {
               printReceipt();
             },
             child: Text("Print Receipt"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(250, 40),
+              shape: const StadiumBorder(),
+              textStyle: const TextStyle(fontSize: 18),
+            ),
+            onPressed: () async {
+              close();
+            },
+            child: Text("Close Printer"),
           )
         ],
       ),
@@ -253,6 +264,10 @@ class _PrintState extends State<PrintItemsPage> {
     _flutterPrinterQpos
         .addtext("                                                ");
     _flutterPrinterQpos.printReceipt();
+  }
+
+  void close() {
+    _flutterPrinterQpos.close();
   }
 
   void parasPrintListener(QPOSPrintModel datas) {

@@ -47,6 +47,12 @@ public class PosPrinterPluginHandler {
         printLineStyle = new PrintLineStyle();
     }
 
+    public static void close(){
+        if(mPrinter != null) {
+            mPrinter.close();
+        }
+    }
+
     public static void setAlign(String align) {
         if (align.equals("LEFT")) {
             printLineStyle.setAlign(PrintLine.LEFT);

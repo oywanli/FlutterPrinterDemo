@@ -100,6 +100,10 @@ class FlutterPrinterQpos {
     _methodChannel.invokeMethod('initPrinter');
   }
 
+  void close() {
+    _methodChannel.invokeListMethod('close');
+  }
+
   void setAlign(String align) {
     Map<String, String> params = Map<String, String>();
     params['align'] = align;
