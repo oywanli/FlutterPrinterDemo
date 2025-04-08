@@ -16,3 +16,7 @@
 ## 0.0.6
 
 * add api close and update SDK version to 1.4.0
+
+## 0.0.7
+
+* add the optional parameter isConvert to api addBitmap 

@@ -199,10 +199,19 @@ class FlutterPrinterQpos {
   }
 
 
-  void addBitmap(Uint8List bitmap) {
-    Map<String, Uint8List> params = Map<String, Uint8List>();
-    params['bitmap'] = bitmap;
-    print('dart:addBitmap' + bitmap.toString());
+  // void addBitmap(Uint8List bitmap) {
+  //   Map<String, Uint8List> params = Map<String, Uint8List>();
+  //   params['bitmap'] = bitmap;
+  //   print('dart:addBitmap' + bitmap.toString());
+  //   _methodChannel.invokeMethod('addBitmap', params);
+  // }
+
+  void addBitmap(Uint8List bitmap, {bool? isConvert}) {
+    Map<String, dynamic> params = <String, dynamic>{
+      'bitmap': bitmap,
+      'isConvert': isConvert,
+    };
+    print('dart:addBitmap - bitmap: $bitmap, \nisConvert: $isConvert');
     _methodChannel.invokeMethod('addBitmap', params);
   }
 

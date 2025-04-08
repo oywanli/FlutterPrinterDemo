@@ -197,6 +197,21 @@ public class PosPrinterPluginHandler {
         }
     }
 
+    public static void addBitmap(Bitmap bitmap, boolean isConvert) {
+        try {
+            TRACE.d("handler addBitmap:isConvert:"+isConvert);
+
+//            Bitmap  bitmapSmall = setImgSize(bitmap,10);
+            PrinterLayout printerLayout = new PrinterLayout(mContext);
+            BitmapPrintLine bitmapPrintLine = new BitmapPrintLine(bitmap, PrintLine.CENTER, isConvert);
+            printerLayout.addBitmap(bitmapPrintLine);
+            Bitmap bitmap1 = printerLayout.viewToBitmap();
+            mPrinter.addBitmap(bitmap1);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
 
     public static void setFooter(int height) {
         try {

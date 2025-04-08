@@ -18,6 +18,9 @@ import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
 
 import com.dspread.flutter_printer_qpos.TRACE;
 
+import java.util.Map;
+
+
 /**
  * FlutterPrinterQposPlugin
  */
@@ -160,7 +163,15 @@ public class FlutterPrinterQposPlugin implements FlutterPlugin, ActivityAware, M
         } else if (call.method.equals("addBitmap")) {
             byte[] bitmapByte = call.argument("bitmap");
             Bitmap bitmap = BitmapFactory.decodeByteArray(bitmapByte, 0, bitmapByte.length);
-            PosPrinterPluginHandler.addBitmap(bitmap);
+            Boolean  isConvert = call.argument("isConvert");
+            if (isConvert != null) {
+                TRACE.d("isConvert exsit");
+//                isConvert = (boolean) isConvert;
+                PosPrinterPluginHandler.addBitmap(bitmap, isConvert);
+            } else {
+                TRACE.d("isConvert not exsit");
+                PosPrinterPluginHandler.addBitmap(bitmap);
+            }
         } else if (call.method.equals("setFooter")) {
             int height = Integer.parseInt(call.argument("height"));
             PosPrinterPluginHandler.setFooter(height);
