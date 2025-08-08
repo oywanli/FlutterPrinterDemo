@@ -9,7 +9,7 @@ on:
 
 env:
   FLUTTER_VERSION: "3.19.5"
-  PROJECT_DIR: "flutter_printer_qpos"  # 明确指定项目目录名称
+  PROJECT_DIR: "example"  # 明确指定项目目录名称
 
 jobs:
   build-and-release:
