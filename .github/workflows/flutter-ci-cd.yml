@@ -66,12 +66,38 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      # 8. 构建APK
+
+       # 4. 查找入口文件
+      - name: Find entry point
+        id: find-entry
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          # 检查常见的入口文件
+          if [ -f "lib/main.dart" ]; then
+            echo "找到入口文件: lib/main.dart"
+            echo "ENTRY_POINT=lib/main.dart" >> $GITHUB_OUTPUT
+          elif [ -f "lib/main_prod.dart" ]; then
+            echo "找到入口文件: lib/main_prod.dart"
+            echo "ENTRY_POINT=lib/main_prod.dart" >> $GITHUB_OUTPUT
+          else
+            # 查找第一个dart文件作为入口
+            ENTRY=$(find lib -name "*.dart" | head -1)
+            if [ -z "$ENTRY" ]; then
+              echo "::error::错误: 在lib目录中找不到任何Dart文件!"
+              exit 1
+            else
+              echo "使用找到的入口文件: $ENTRY"
+              echo "ENTRY_POINT=$ENTRY" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+           # 7. 构建APK (使用找到的入口点)
       - name: Build APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
+          echo "使用入口点: ${{ steps.find-entry.outputs.ENTRY_POINT }}"
           flutter clean
-          flutter build apk --release --no-tree-shake-icons
+          flutter build apk --release --no-tree-shake-icons -t ${{ steps.find-entry.outputs.ENTRY_POINT }}
 
       # 9. 获取版本信息
       - name: Extract version info
