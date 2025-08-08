@@ -37,7 +37,7 @@ jobs:
           key: ${{ runner.os }}-flutter-${{ env.FLUTTER_VERSION }}-${{ hashFiles('flutter-app/pubspec.lock') }}
       
       - name: Install dependencies
-        working-directory: ./flutter_printer_qpos/example
+        working-directory: ./flutter_printer_qpos
         run: flutter pub get
       
       - name: Set up JDK
@@ -47,16 +47,16 @@ jobs:
           java-version: '17'
       
       - name: Clean build
-        working-directory: ./flutter-app
+        working-directory: ./flutter_printer_qpos
         run: flutter clean
       
       - name: Build APK
-        working-directory: ./flutter-app
+        working-directory: ./flutter_printer_qpos
         run: flutter build apk --release --no-tree-shake-icons
       
       - name: Get version info
         id: version
-        working-directory: ./flutter-app
+        working-directory: ./flutter_printer_qpos
         run: |
           echo "VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}' | tr -d '\"')" >> $GITHUB_OUTPUT
           echo "APP_NAME=$(grep 'name:' pubspec.yaml | awk '{print $2}' | tr -d '\"')" >> $GITHUB_OUTPUT
