@@ -1,88 +1,106 @@
-name: Optimized Flutter CI/CD Pipeline
-
+name: Flutter CI/CD Pipeline
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+    tags: ['v*.*.*']
+  pull_request:
     branches: [main]
 
 env:
   FLUTTER_VERSION: "3.19.5"
+  PROJECT_DIR: "flutter_printer_qpos"  # 明确指定项目目录名称
 
 jobs:
-  build-release:
+  build-and-release:
     runs-on: ubuntu-latest
-    
+
     steps:
-      - uses: actions/checkout@v4
+      # 1. 检出代码（不指定path参数，使用默认检出位置）
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
-          path: 'flutter-app'
           fetch-depth: 0
-      
+
+      # 2. 验证项目目录存在
+      - name: Verify project directory
+        run: |
+          if [ ! -d "${{ env.PROJECT_DIR }}" ]; then
+            echo "::error::Project directory '${{ env.PROJECT_DIR }}' not found!"
+            ls -la
+            exit 1
+          fi
+
+      # 3. 设置Flutter环境
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
-      
+
+      # 4. 验证环境
       - name: Verify Flutter
-        run: flutter --version
-      
-      - name: Cache dependencies
+        run: |
+          flutter --version
+          flutter doctor
+
+      # 5. 缓存优化
+      - name: Cache Flutter dependencies
         uses: actions/cache@v3
         with:
           path: |
             /opt/hostedtoolcache/flutter
-            ${{ env.HOME }}/.pub-cache
-          key: ${{ runner.os }}-flutter-${{ env.FLUTTER_VERSION }}-${{ hashFiles('flutter-app/pubspec.lock') }}
-      
-      - name: Install dependencies
-        working-directory: ./flutter_printer_qpos
+            ~/.pub-cache
+          key: ${{ runner.os }}-flutter-${{ env.FLUTTER_VERSION }}-${{ hashFiles('${{ env.PROJECT_DIR }}/pubspec.lock') }}
+
+      # 6. 获取依赖（使用完整路径）
+      - name: Get dependencies
+        working-directory: ${{ env.PROJECT_DIR }}
         run: flutter pub get
-      
+
+      # 7. 设置Java环境
       - name: Set up JDK
         uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
           java-version: '17'
-      
-      - name: Clean build
-        working-directory: ./flutter_printer_qpos
-        run: flutter clean
-      
+
+      # 8. 构建APK
       - name: Build APK
-        working-directory: ./flutter_printer_qpos
-        run: flutter build apk --release --no-tree-shake-icons
-      
-      - name: Get version info
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          flutter clean
+          flutter build apk --release --no-tree-shake-icons
+
+      # 9. 获取版本信息
+      - name: Extract version info
         id: version
-        working-directory: ./flutter_printer_qpos
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
           echo "VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}' | tr -d '\"')" >> $GITHUB_OUTPUT
           echo "APP_NAME=$(grep 'name:' pubspec.yaml | awk '{print $2}' | tr -d '\"')" >> $GITHUB_OUTPUT
-      
-      - name: Create Release
-        id: create_release
+
+      # 10. 创建Release (仅针对main分支和tag)
+      - name: Create GitHub Release
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+        id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: v${{ steps.version.outputs.VERSION }}
           release_name: ${{ steps.version.outputs.APP_NAME }} v${{ steps.version.outputs.VERSION }}
-          body: |
-            Automatic release for version ${{ steps.version.outputs.VERSION }}
-            Build date: ${{ steps.date.outputs.date }}
           draft: false
           prerelease: false
-      
-      - name: Upload APK
+
+      # 11. 上传APK (仅针对main分支和tag)
+      - name: Upload APK to Release
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./flutter-app/build/app/outputs/flutter-apk/app-release.apk
+          asset_path: ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk
           asset_name: ${{ steps.version.outputs.APP_NAME }}-${{ steps.version.outputs.VERSION }}.apk
           asset_content_type: application/vnd.android.package-archive
