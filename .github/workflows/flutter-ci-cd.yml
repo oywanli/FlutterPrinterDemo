@@ -37,7 +37,7 @@ jobs:
           key: ${{ runner.os }}-flutter-${{ env.FLUTTER_VERSION }}-${{ hashFiles('flutter-app/pubspec.lock') }}
       
       - name: Install dependencies
-        working-directory: ./flutter-app
+        working-directory: ./flutter_printer_qpos/example
         run: flutter pub get
       
       - name: Set up JDK
