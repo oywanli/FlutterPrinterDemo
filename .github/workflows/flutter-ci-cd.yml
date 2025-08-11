@@ -166,36 +166,51 @@ jobs:
           flutter clean
           flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT
 
-      # 其余步骤保持不变...
-      # ... (版本提取、发布创建和APK上传步骤)
-
       # 9. 获取版本信息
       - name: Extract version info
         id: version
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          echo "VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}' | tr -d '\"')" >> $GITHUB_OUTPUT
-          echo "APP_NAME=$(grep 'name:' pubspec.yaml | awk '{print $2}' | tr -d '\"')" >> $GITHUB_OUTPUT
+          VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}' | tr -d '\"')
+          APP_NAME=$(grep 'name:' pubspec.yaml | awk '{print $2}' | tr -d '\"')
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "APP_NAME=$APP_NAME" >> $GITHUB_OUTPUT
+          echo "APK_PATH=${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk" >> $GITHUB_OUTPUT
 
-        # 10. 检查Release是否存在并创建/更新
+      # 10. 检查Release是否存在并创建/更新
       - name: Check and Create Release
         id: create_release
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 获取版本号
-          VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}' | tr -d '\"')
-          APP_NAME=$(grep 'name:' pubspec.yaml | awk '{print $2}' | tr -d '\"')
+          # 获取版本信息
+          VERSION=${{ steps.version.outputs.VERSION }}
+          APP_NAME=${{ steps.version.outputs.APP_NAME }}
           
           # 检查Release是否存在
-          RELEASE_ID=$(curl -s \
+          RELEASE_RESPONSE=$(curl -s \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/v$VERSION" | jq -r '.id')
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/v$VERSION")
+          
+          RELEASE_ID=$(echo "$RELEASE_RESPONSE" | jq -r '.id')
           
           if [ "$RELEASE_ID" != "null" ]; then
             echo "Release已存在，执行更新..."
+            
+            # 获取所有资产ID
+            ASSET_IDS=$(echo "$RELEASE_RESPONSE" | jq -r '.assets[] | .id')
+            
+            # 删除所有现有资产
+            for ASSET_ID in $ASSET_IDS; do
+              echo "删除资产ID: $ASSET_ID"
+              curl -s -X DELETE \
+                -H "Authorization: token $GITHUB_TOKEN" \
+                -H "Accept: application/vnd.github.v3+json" \
+                "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/assets/$ASSET_ID"
+            done
+            
             # 删除现有Release
             curl -s -X DELETE \
               -H "Authorization: token $GITHUB_TOKEN" \
@@ -210,12 +225,14 @@ jobs:
           fi
           
           # 创建新Release
+          echo "创建新Release v$VERSION..."
           RESPONSE=$(curl -s -X POST \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
             -d '{
               "tag_name": "v'"$VERSION"'",
               "name": "'"$APP_NAME"' v'"$VERSION"'",
+              "body": "自动构建发布 - 版本 v'"$VERSION"'\n构建时间: '"$(date)"'",
               "draft": false,
               "prerelease": false
             }' \
@@ -230,14 +247,46 @@ jobs:
           echo "upload_url=$UPLOAD_URL" >> $GITHUB_OUTPUT
           echo "Release创建/更新成功"
 
-      # 11. 上传APK
+      # 11. 验证APK文件存在
+      - name: Verify APK file
+        id: verify_apk
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+        run: |
+          APK_PATH=${{ steps.version.outputs.APK_PATH }}
+          if [ ! -f "$APK_PATH" ]; then
+            echo "::error::APK文件不存在: $APK_PATH"
+            echo "当前目录内容:"
+            ls -la ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/
+            exit 1
+          fi
+          echo "APK文件大小: $(du -h "$APK_PATH" | cut -f1)"
+
+      # 12. 上传APK到Release
       - name: Upload APK to Release
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk
-          asset_name: ${{ steps.version.outputs.APP_NAME }}-v${{ steps.version.outputs.VERSION }}.apk
-          asset_content_type: application/vnd.android.package-archive
+        run: |
+          APK_PATH=${{ steps.version.outputs.APK_PATH }}
+          APK_NAME="${{ steps.version.outputs.APP_NAME }}-v${{ steps.version.outputs.VERSION }}.apk"
+          UPLOAD_URL="${{ steps.create_release.outputs.upload_url }}"
+          
+          echo "准备上传APK: $APK_NAME"
+          echo "文件路径: $APK_PATH"
+          echo "上传URL: $UPLOAD_URL"
+          
+          # 使用curl上传APK
+          RESPONSE=$(curl -s \
+            -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Content-Type: application/vnd.android.package-archive" \
+            --data-binary @"$APK_PATH" \
+            "$UPLOAD_URL?name=$APK_NAME")
+          
+          if echo "$RESPONSE" | jq -e '.errors'; then
+            echo "::error::APK上传失败: $RESPONSE"
+            exit 1
+          fi
+          
+          echo "APK上传成功!"
+          echo "响应: $RESPONSE"
