@@ -167,14 +167,40 @@ jobs:
           flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT
 
      
+      # 7.在版本信息步骤中添加日期
+      - name: Extract version info
+        id: version
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}' | tr -d '\"')
+          APP_NAME=$(grep 'name:' pubspec.yaml | awk '{print $2}' | tr -d '\"')
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "APP_NAME=$APP_NAME" >> $GITHUB_OUTPUT
+          echo "APK_PATH=${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk" >> $GITHUB_OUTPUT
+          echo "CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S %Z')" >> $GITHUB_ENV
+
+#8. 创建发布时使用环境变量
       - name: Create Release
-        uses: ncipollo/release-action@v1
+        id: create_release
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CURRENT_DATE: ${{ env.CURRENT_DATE }}
         with:
-         artifacts: "${{ steps.version.outputs.APK_PATH }}"
-         token: ${{ secrets.GITHUB_TOKEN }}
-         tag: v${{ steps.version.outputs.VERSION }}
-         name: ${{ steps.version.outputs.APP_NAME }} v${{ steps.version.outputs.VERSION }}
-         body: |
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: ${{ steps.version.outputs.APP_NAME }} v${{ steps.version.outputs.VERSION }}
+          body: |
            v${{ steps.version.outputs.VERSION }}
-           $(date '+%Y-%m-%d %H:%M:%S %Z')
+            ${{ steps.build.outputs.BUILD_DATE }}
+             ### 提交信息
+            - 提交哈希: ${{ steps.commit.outputs.commit_hash }}
+            - 提交信息: ${{ steps.commit.outputs.commit_message }}
+            - 提交作者: ${{ steps.commit.outputs.commit_author }}
+            - 提交时间: ${{ steps.commit.outputs.commit_date }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+          files: |
+            ${{ steps.version.outputs.APK_PATH }}
      
