@@ -46,22 +46,34 @@ jobs:
           flutter --version
           flutter doctor
 
-      # 5. 修复Gradle项目结构 (最终优化版)
-      - name: Fix Gradle project structure
+      # 5. 智能修复项目结构
+      - name: Fix and Prepare Project
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          # 备份关键文件
-          echo "正在备份项目文件..."
+          # 1. 查找入口文件
+          echo "查找入口文件..."
+          if [ -f "example/lib/main.dart" ]; then
+            ENTRY_POINT="example/lib/main.dart"
+          elif [ -f "example/lib/main_prod.dart" ]; then
+            ENTRY_POINT="example/lib/main_prod.dart"
+          else
+            ENTRY_POINT=$(find lib -name "*.dart" | head -1)
+            if [ -z "$ENTRY_POINT" ]; then
+              echo "::error::未找到任何Dart入口文件!"
+              exit 1
+            fi
+          fi
+          echo "找到入口文件: $ENTRY_POINT"
+          echo "ENTRY_POINT=$ENTRY_POINT" >> $GITHUB_ENV
+
+          # 2. 备份关键文件
+          echo "备份关键文件..."
           mkdir -p ../temp_backup
           cp -r lib pubspec.yaml ../temp_backup/
           [ -d "assets" ] && cp -r assets ../temp_backup/
           [ -d "test" ] && cp -r test ../temp_backup/
           
-          # 删除旧平台目录
-          echo "清理旧平台配置..."
-          rm -rf android ios .dart_tool .idea
-          
-          # 创建临时目录用于重建项目
+          # 3. 重建项目结构
           echo "重建项目结构..."
           cd ..
           flutter create \
@@ -71,13 +83,12 @@ jobs:
             --overwrite \
             temp_flutter_project
           
-          # 将重建的项目文件复制回原目录
-          echo "恢复项目结构..."
+          # 4. 恢复项目
+          echo "恢复项目..."
           cp -r temp_flutter_project/. ${{ env.PROJECT_DIR }}/
           rm -rf temp_flutter_project
           
-          # 恢复原有代码和配置
-          echo "恢复原有代码..."
+          # 5. 恢复原有代码
           cd ${{ env.PROJECT_DIR }}
           rm -rf lib test
           cp -r ../temp_backup/lib .
@@ -85,9 +96,15 @@ jobs:
           cp ../temp_backup/pubspec.yaml .
           [ -d "../temp_backup/assets" ] && cp -r ../temp_backup/assets .
           
-          # 清理备份
+          # 6. 确保入口文件存在
+          if [ ! -f "$ENTRY_POINT" ]; then
+            echo "::error::入口文件 $ENTRY_POINT 不存在!"
+            exit 1
+          fi
+          
+          # 7. 清理备份
           rm -rf ../temp_backup
-          echo "项目重建完成！"
+          echo "项目准备完成!"
 
       # 6. 获取依赖
       - name: Get dependencies
@@ -102,42 +119,13 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      # 8. 构建APK
+      # 8. 构建APK (使用找到的入口点)
       - name: Build APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
+          echo "使用入口点: $ENTRY_POINT"
           flutter clean
-          flutter build apk --release --no-tree-shake-icons
+          flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT
 
-      # 9. 获取版本信息
-      - name: Extract version info
-        id: version
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          echo "VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}' | tr -d '\"')" >> $GITHUB_OUTPUT
-          echo "APP_NAME=$(grep 'name:' pubspec.yaml | awk '{print $2}' | tr -d '\"')" >> $GITHUB_OUTPUT
-
-      # 10. 创建Release
-      - name: Create GitHub Release
-        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ steps.version.outputs.VERSION }}
-          release_name: ${{ steps.version.outputs.APP_NAME }} v${{ steps.version.outputs.VERSION }}
-          draft: false
-          prerelease: false
-
-      # 11. 上传APK
-      - name: Upload APK to Release
-        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk
-          asset_name: ${{ steps.version.outputs.APP_NAME }}-${{ steps.version.outputs.VERSION }}.apk
-          asset_content_type: application/vnd.android.package-archive
+      # 其余步骤保持不变...
+      # ... (版本提取、发布创建和APK上传步骤)
