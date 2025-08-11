@@ -119,12 +119,13 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      # 8. 构建APK
+        # 8. 构建APK
       - name: Build APK
-        working-directory: ${{ env.PROJECT_DIR }}
+        working-directory: ${{ env.PROJECT_DIR }}/${{ env.IS_EXAMPLE_PROJECT == 'true' && 'example' || '' }}
         run: |
+          echo "使用入口点: $ENTRY_POINT"
           flutter clean
-          flutter build apk --release --no-tree-shake-icons
+          flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT
 
       # 9. 获取版本信息
       - name: Extract version info
