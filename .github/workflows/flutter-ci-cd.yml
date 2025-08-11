@@ -17,20 +17,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. 检出代码
+      # 1. 检出代码（大小写敏感）
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # 2. 验证项目目录
-      - name: Verify project directory
+      # 2. 验证项目目录（兼容大小写）
+      - name: Verify project structure
         run: |
-          if [ ! -d "${{ env.PROJECT_DIR }}" ]; then
+          # 查找项目目录（不区分大小写）
+          PROJECT_DIR=$(find . -maxdepth 1 -iname "${{ env.PROJECT_DIR }}" -type d | head -1)
+          if [ -z "$PROJECT_DIR" ]; then
             echo "::error::Project directory '${{ env.PROJECT_DIR }}' not found!"
             ls -la
             exit 1
           fi
+          echo "PROJECT_DIR=${PROJECT_DIR#./}" >> $GITHUB_ENV
+          echo "Using project directory: ${PROJECT_DIR#./}"
 
       # 3. 设置Flutter环境
       - name: Set up Flutter
@@ -46,18 +50,22 @@ jobs:
           flutter --version
           flutter doctor
 
-      # 5. 智能修复项目结构
+      # 5. 智能修复项目结构（兼容大小写）
       - name: Fix and Prepare Project
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          # 1. 查找入口文件
+          # 1. 查找入口文件（兼容大小写）
           echo "查找入口文件..."
-          if [ -f "example/lib/main.dart" ]; then
-            ENTRY_POINT="example/lib/main.dart"
-          elif [ -f "example/lib/main_prod.dart" ]; then
-            ENTRY_POINT="example/lib/main_prod.dart"
-          else
-            ENTRY_POINT=$(find lib -name "*.dart" | head -1)
+          ENTRY_POINT=""
+          for path in "example/lib/main.dart" "Example/lib/main.dart" "lib/main.dart"; do
+            if [ -f "$path" ]; then
+              ENTRY_POINT="$path"
+              break
+            fi
+          done
+          
+          if [ -z "$ENTRY_POINT" ]; then
+            ENTRY_POINT=$(find . -iname "main.dart" -o -iname "main_prod.dart" | head -1)
             if [ -z "$ENTRY_POINT" ]; then
               echo "::error::未找到任何Dart入口文件!"
               exit 1
@@ -66,14 +74,26 @@ jobs:
           echo "找到入口文件: $ENTRY_POINT"
           echo "ENTRY_POINT=$ENTRY_POINT" >> $GITHUB_ENV
 
-          # 2. 备份关键文件
+          # 2. 修复导入路径（兼容大小写）
+          echo "修复导入路径..."
+          for file in $(find . -name "*.dart"); do
+            # 修复 Pages/pages 大小写问题
+            sed -i -E "s|import ['\"]([pP]ages/PrintItemsPage\.dart)['\"]|import '${ENTRY_POINT%/*}/../Pages/PrintItemsPage.dart'|gi" "$file"
+          done
+
+          # 3. 备份关键文件（兼容assets大小写）
           echo "备份关键文件..."
           mkdir -p ../temp_backup
           cp -r lib pubspec.yaml ../temp_backup/
-          [ -d "assets" ] && cp -r assets ../temp_backup/
+          for dir in assets Assets; do
+            if [ -d "$dir" ]; then
+              cp -r "$dir" ../temp_backup/
+              break
+            fi
+          done
           [ -d "test" ] && cp -r test ../temp_backup/
           
-          # 3. 重建项目结构
+          # 4. 重建项目结构
           echo "重建项目结构..."
           cd ..
           flutter create \
@@ -83,26 +103,31 @@ jobs:
             --overwrite \
             temp_flutter_project
           
-          # 4. 恢复项目
+          # 5. 恢复项目
           echo "恢复项目..."
-          cp -r temp_flutter_project/. ${{ env.PROJECT_DIR }}/
+          cp -r temp_flutter_project/. "$PROJECT_DIR"/
           rm -rf temp_flutter_project
           
-          # 5. 恢复原有代码
-          cd ${{ env.PROJECT_DIR }}
+          # 6. 恢复原有代码
+          cd "$PROJECT_DIR"
           rm -rf lib test
           cp -r ../temp_backup/lib .
           [ -d "../temp_backup/test" ] && cp -r ../temp_backup/test .
           cp ../temp_backup/pubspec.yaml .
-          [ -d "../temp_backup/assets" ] && cp -r ../temp_backup/assets .
+          for dir in assets Assets; do
+            if [ -d "../temp_backup/$dir" ]; then
+              cp -r "../temp_backup/$dir" .
+              break
+            fi
+          done
           
-          # 6. 确保入口文件存在
+          # 7. 确保入口文件存在
           if [ ! -f "$ENTRY_POINT" ]; then
             echo "::error::入口文件 $ENTRY_POINT 不存在!"
             exit 1
           fi
           
-          # 7. 清理备份
+          # 8. 清理备份
           rm -rf ../temp_backup
           echo "项目准备完成!"
 
@@ -119,14 +144,16 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-        # 8. 构建APK
+      # 8. 构建APK（兼容入口点路径）
       - name: Build APK
-        working-directory: ${{ env.PROJECT_DIR }}/${{ env.IS_EXAMPLE_PROJECT == 'true' && 'example' || '' }}
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
           echo "使用入口点: $ENTRY_POINT"
           flutter clean
-          flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT
-
+          if [[ "$ENTRY_POINT" == *"example/"* ]]; then
+            cd example
+          fi
+          flutter build apk --release --no-tree-shake-icons -t "$ENTRY_POINT"
       # 9. 获取版本信息
       - name: Extract version info
         id: version
