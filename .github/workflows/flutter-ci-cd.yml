@@ -52,10 +52,10 @@ jobs:
         run: |
           # 1. 查找入口文件
           echo "查找入口文件..."
-          if [ -f "example/lib/main.dart" ]; then
-            ENTRY_POINT="example/lib/main.dart"
-          elif [ -f "example/lib/main_prod.dart" ]; then
-            ENTRY_POINT="example/lib/main_prod.dart"
+          if [ -f "lib/main.dart" ]; then
+            ENTRY_POINT="lib/main.dart"
+          elif [ -f "lib/main_prod.dart" ]; then
+            ENTRY_POINT="lib/main_prod.dart"
           else
             ENTRY_POINT=$(find lib -name "*.dart" | head -1)
             if [ -z "$ENTRY_POINT" ]; then
@@ -119,16 +119,16 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-    # 8. 构建APK（兼容入口点路径）
+      # 8. 构建APK (使用找到的入口点)
       - name: Build APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           echo "使用入口点: $ENTRY_POINT"
           flutter clean
-          if [[ "$ENTRY_POINT" == *"example/"* ]]; then
-            cd example
-          fi
-          flutter build apk --release --no-tree-shake-icons -t "$ENTRY_POINT"
+          flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT
+
+      # 其余步骤保持不变...
+      # ... (版本提取、发布创建和APK上传步骤)
 
       # 9. 获取版本信息
       - name: Extract version info
