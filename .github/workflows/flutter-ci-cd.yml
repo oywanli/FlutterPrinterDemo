@@ -190,7 +190,7 @@ jobs:
           name: ${{ steps.version.outputs.APP_NAME }} v${{ steps.version.outputs.VERSION }}
           body: |
             Release - Version v${{ steps.version.outputs.VERSION }}
-            Release date:${{ steps.date.outputs.current_date }}
+            Release date: ${{ steps.date.outputs.current_date }}
           draft: false
           prerelease: false
           fail_on_unmatched_files: true
