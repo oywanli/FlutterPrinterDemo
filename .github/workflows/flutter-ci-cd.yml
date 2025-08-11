@@ -11,12 +11,13 @@ env:
   FLUTTER_VERSION: "3.19.5"
   PROJECT_DIR: "flutter_printer_qpos"
   ORG_NAME: "com.dspread"
-  KEYSTORE_PATH: "${{ github.workspace }}/${{ env.PROJECT_DIR }}/android/app/src/app.keystore"
 
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
-
+    env:
+      PROJECT_DIR: "flutter_printer_qpos"
+      KEYSTORE_PATH: "${{ github.workspace }}/flutter_printer_qpos/android/app/src/app.keystore"
     steps:
       # 1. 检出代码（获取完整提交历史）
       - name: Checkout code
