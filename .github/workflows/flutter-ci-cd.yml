@@ -11,7 +11,7 @@ env:
   FLUTTER_VERSION: "3.19.5"
   PROJECT_DIR: "flutter_printer_qpos"
   ORG_NAME: "com.dspread"
-  KEYSTORE_PATH: "${{ github.workspace }}/${{ env.PROJECT_DIR }}/android/app/src/app.keystore"
+  KEYSTORE_PATH: "flutter_printer_qpos/example/android/app/src/app.keystore"
 
 jobs:
   build-and-release:
