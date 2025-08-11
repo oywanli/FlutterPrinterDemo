@@ -11,21 +11,19 @@ env:
   FLUTTER_VERSION: "3.19.5"
   PROJECT_DIR: "flutter_printer_qpos"
   ORG_NAME: "com.dspread"
-  KEYSTORE_FILE: "./example/android/app/app.keystore"  # Your keystore file name
-  KEYSTORE_ALIAS: "gundam_wing"      # Your keystore alias
 
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout code
+      # 1. 检出代码（获取完整提交历史）
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # 获取完整提交历史，以便获取提交信息
 
-      # 2. Get commit details
+      # 2. 获取提交信息
       - name: Get commit details
         id: commit
         run: |
@@ -35,14 +33,16 @@ jobs:
           echo "commit_date=$(git log -1 --pretty=%cd --date=format:'%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
           echo "commit_url=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$GITHUB_SHA" >> $GITHUB_OUTPUT
 
-      # 3. Set up Java environment
-      - name: Set up JDK
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'zulu'
-          java-version: '17'
+      # 3. 验证项目目录
+      - name: Verify project directory
+        run: |
+          if [ ! -d "${{ env.PROJECT_DIR }}" ]; then
+            echo "::error::Project directory '${{ env.PROJECT_DIR }}' not found!"
+            ls -la
+            exit 1
+          fi
 
-      # 4. Set up Flutter
+      # 4. 设置Flutter环境
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -50,67 +50,145 @@ jobs:
           channel: 'stable'
           cache: true
 
-      # 5. Verify environment
+      # 5. 验证环境
       - name: Verify Flutter
         run: |
           flutter --version
           flutter doctor
 
-      # 6. Get dependencies
+      # 6. 智能修复项目结构（兼容大小写）
+      - name: Fix and Prepare Project
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          # 1. 查找入口文件（兼容大小写）
+          echo "查找入口文件..."
+          ENTRY_POINT=""
+          # 检查可能的入口文件路径（不区分大小写）
+          for path in "example/lib/main.dart" "Example/lib/main.dart" "lib/main.dart"; do
+            if [ -f "$path" ]; then
+              ENTRY_POINT="$path"
+              break
+            fi
+          done
+          
+          # 如果标准路径没找到，使用find命令搜索
+          if [ -z "$ENTRY_POINT" ]; then
+            ENTRY_POINT=$(find . -iname "main.dart" -o -iname "main_prod.dart" | head -1)
+            if [ -z "$ENTRY_POINT" ]; then
+              echo "::error::未找到任何Dart入口文件!"
+              exit 1
+            fi
+          fi
+          echo "找到入口文件: $ENTRY_POINT"
+          echo "ENTRY_POINT=$ENTRY_POINT" >> $GITHUB_ENV
+
+          # 2. 备份关键文件（兼容大小写）
+          echo "备份关键文件..."
+          mkdir -p ../temp_backup
+          
+          # 备份lib和pubspec.yaml
+          cp -r lib pubspec.yaml ../temp_backup/
+          
+          # 备份assets目录（兼容大小写）
+          for dir in assets Assets; do
+            if [ -d "$dir" ]; then
+              cp -r "$dir" ../temp_backup/
+              break
+            fi
+          done
+          
+          # 备份test目录
+          [ -d "test" ] && cp -r test ../temp_backup/
+          
+          # 3. 修复pages目录大小写问题
+          echo "修复pages目录大小写问题..."
+          if [ -d "example/pages" ] && [ ! -d "example/Pages" ]; then
+            mv "example/pages" "example/Pages"
+          elif [ -d "lib/pages" ] && [ ! -d "lib/Pages" ]; then
+            mv "lib/pages" "lib/Pages"
+          fi
+          
+          # 4. 修复导入语句中的大小写问题
+          echo "修复导入语句..."
+          for file in $(find . -name "*.dart"); do
+            # 修复pages/Pages大小写问题
+            sed -i -E "s|import ['\"][pP]ages/PrintItemsPage\.dart['\"]|import 'Pages/PrintItemsPage.dart'|g" "$file"
+          done
+          
+          # 5. 重建项目结构
+          echo "重建项目结构..."
+          cd ..
+          flutter create \
+            --platforms android,ios \
+            --project-name ${{ env.PROJECT_DIR }} \
+            --org ${{ env.ORG_NAME }} \
+            --overwrite \
+            temp_flutter_project
+          
+          # 6. 恢复项目
+          echo "恢复项目..."
+          cp -r temp_flutter_project/. ${{ env.PROJECT_DIR }}/
+          rm -rf temp_flutter_project
+          
+          # 7. 恢复原有代码
+          cd ${{ env.PROJECT_DIR }}
+          rm -rf lib test
+          cp -r ../temp_backup/lib .
+          [ -d "../temp_backup/test" ] && cp -r ../temp_backup/test .
+          cp ../temp_backup/pubspec.yaml .
+          
+          # 恢复assets目录（兼容大小写）
+          for dir in assets Assets; do
+            if [ -d "../temp_backup/$dir" ]; then
+              cp -r "../temp_backup/$dir" .
+              break
+            fi
+          done
+          
+          # 8. 确保入口文件存在
+          if [ ! -f "$ENTRY_POINT" ]; then
+            echo "::error::入口文件 $ENTRY_POINT 不存在!"
+            exit 1
+          fi
+          
+          # 9. 清理备份
+          rm -rf ../temp_backup
+          echo "项目准备完成!"
+
+      # 7. 获取依赖
       - name: Get dependencies
         working-directory: ${{ env.PROJECT_DIR }}
-        run: flutter pub get
+        run: |
+          flutter pub get
 
-      # 7. Configure signing (using GitHub secrets)
-      - name: Configure signing
+      # 8. 设置Java环境
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      # 9. 构建APK (使用找到的入口点)
+      - name: Build APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          # Create key.properties file
-          cat <<EOF > android/key.properties
-          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
-          keyAlias=${{ env.KEYSTORE_ALIAS }}
-          storeFile=../${{ env.KEYSTORE_FILE }}
-          EOF
-
-          # Create local.properties file
-          cat <<EOF > android/local.properties
-          flutter.sdk=$FLUTTER_HOME
-          flutter.versionName=${{ steps.version.outputs.VERSION }}
-          flutter.versionCode=${{ steps.version.outputs.VERSION_CODE }}
-          EOF
-
-      # 8. Build signed APK
-      - name: Build signed APK
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          # Copy keystore file from secrets
-          echo "${{ secrets.ANDROID_KEYSTORE }}" > ${{ env.KEYSTORE_FILE }}
-          base64 --decode ${{ env.KEYSTORE_FILE }} > ${{ env.KEYSTORE_FILE }}
-
+          echo "使用入口点: $ENTRY_POINT"
           flutter clean
-          flutter build apk --release --no-tree-shake-icons \
-            --build-name=${{ steps.version.outputs.VERSION }} \
-            --build-number=${{ steps.version.outputs.VERSION_CODE }}
+          flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT
 
-          # Verify APK is signed
-          apksigner verify build/app/outputs/flutter-apk/app-release.apk
-
-      # 9. Extract version info
+      # 10. 提取版本信息并设置构建日期
       - name: Extract version info
         id: version
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}' | tr -d '\"')
-          VERSION_CODE=$(git rev-list --count HEAD)
           APP_NAME=$(grep 'name:' pubspec.yaml | awk '{print $2}' | tr -d '\"')
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_OUTPUT
           echo "APP_NAME=$APP_NAME" >> $GITHUB_OUTPUT
           echo "APK_PATH=${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk" >> $GITHUB_OUTPUT
           echo "BUILD_DATE=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
 
-      # 10. Create release
+      # 11. 创建发布
       - name: Create Release
         id: create_release
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
@@ -123,23 +201,15 @@ jobs:
           body: |
             ## 🚀 ${{ steps.version.outputs.APP_NAME }} v${{ steps.version.outputs.VERSION }}
             
-            **Build Information**
-            - Build time: ${{ steps.version.outputs.BUILD_DATE }}
-            - Version code: ${{ steps.version.outputs.VERSION_CODE }}
-            - Triggered by: ${{ github.event_name }} (${{ github.ref }})
+            **Commit Messgae**
+            - commit hash: [${{ steps.commit.outputs.commit_hash }}](${{ steps.commit.outputs.commit_url }})
+            - commit message: ${{ steps.commit.outputs.commit_message }}
+            - commit author: ${{ steps.commit.outputs.commit_author }}
+            - commit date: ${{ steps.commit.outputs.commit_date }}
             
-            **Latest Commit**
-            - Commit hash: [${{ steps.commit.outputs.commit_hash }}](${{ steps.commit.outputs.commit_url }})
-            - Commit message: ${{ steps.commit.outputs.commit_message }}
-            - Author: ${{ steps.commit.outputs.commit_author }}
-            - Commit date: ${{ steps.commit.outputs.commit_date }}
-            
-            **APK Information**
+            **APK Version**
             - Version: ${{ steps.version.outputs.VERSION }}
-            - Signed: Yes (SHA-256)
-            
-            **Workflow Information**
-            - Workflow run: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+      
           draft: false
           prerelease: false
           fail_on_unmatched_files: true
