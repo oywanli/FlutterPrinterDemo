@@ -201,22 +201,15 @@ jobs:
           body: |
             ## 🚀 ${{ steps.version.outputs.APP_NAME }} v${{ steps.version.outputs.VERSION }}
             
-            **构建信息**
-            - 构建时间: ${{ steps.version.outputs.BUILD_DATE }}
-            - 构建触发: ${{ github.event_name }} (${{ github.ref }})
+            **Commit Messgae**
+            - commit hash: [${{ steps.commit.outputs.commit_hash }}](${{ steps.commit.outputs.commit_url }})
+            - commit message: ${{ steps.commit.outputs.commit_message }}
+            - commit author: ${{ steps.commit.outputs.commit_author }}
+            - commit date: ${{ steps.commit.outputs.commit_date }}
             
-            **最新提交信息**
-            - 提交哈希: [${{ steps.commit.outputs.commit_hash }}](${{ steps.commit.outputs.commit_url }})
-            - 提交信息: ${{ steps.commit.outputs.commit_message }}
-            - 提交作者: ${{ steps.commit.outputs.commit_author }}
-            - 提交时间: ${{ steps.commit.outputs.commit_date }}
-            
-            **APK信息**
-            - 版本: ${{ steps.version.outputs.VERSION }}
-            - 入口文件: ${{ env.ENTRY_POINT }}
-            
-            **工作流信息**
-            - 工作流运行: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            **APK Version**
+            - Version: ${{ steps.version.outputs.VERSION }}
+      
           draft: false
           prerelease: false
           fail_on_unmatched_files: true
