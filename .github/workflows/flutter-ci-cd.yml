@@ -73,12 +73,12 @@ jobs:
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           # 检查常见的入口文件
-          if [ -f "lib/main.dart" ]; then
-            echo "找到入口文件: lib/main.dart"
-            echo "ENTRY_POINT=lib/main.dart" >> $GITHUB_OUTPUT
-          elif [ -f "lib/main_prod.dart" ]; then
-            echo "找到入口文件: lib/main_prod.dart"
-            echo "ENTRY_POINT=lib/main_prod.dart" >> $GITHUB_OUTPUT
+          if [ -f "example/lib/main.dart" ]; then
+            echo "找到入口文件: example/lib/main.dart"
+            echo "ENTRY_POINT=example/lib/main.dart" >> $GITHUB_OUTPUT
+          elif [ -f "example/lib/main_prod.dart" ]; then
+            echo "找到入口文件: example/lib/main_prod.dart"
+            echo "ENTRY_POINT=example/lib/main_prod.dart" >> $GITHUB_OUTPUT
           else
             # 查找第一个dart文件作为入口
             ENTRY=$(find lib -name "*.dart" | head -1)
