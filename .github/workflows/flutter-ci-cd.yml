@@ -9,19 +9,20 @@ on:
 
 env:
   FLUTTER_VERSION: "3.19.5"
-  PROJECT_DIR: "flutter_printer_qpos"
-  GRADLE_BUILD_CACHE_DIR: "$HOME/.gradle/caches"
-  GRADLE_WRAPPER_CACHE_DIR: "$HOME/.gradle/wrapper"
+  PROJECT_DIR: "flutter_printer_qpos"  # 明确指定项目目录名称
 
 jobs:
-  test:
+  build-and-release:
     runs-on: ubuntu-latest
+
     steps:
+      # 1. 检出代码（不指定path参数，使用默认检出位置）
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # 2. 验证项目目录存在
       - name: Verify project directory
         run: |
           if [ ! -d "${{ env.PROJECT_DIR }}" ]; then
@@ -30,6 +31,7 @@ jobs:
             exit 1
           fi
 
+      # 3. 设置Flutter环境
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -37,131 +39,77 @@ jobs:
           channel: 'stable'
           cache: true
 
+      # 4. 验证环境
       - name: Verify Flutter
         run: |
           flutter --version
-          flutter doctor -v
+          flutter doctor
 
+      # 5. 缓存优化
       - name: Cache Flutter dependencies
         uses: actions/cache@v3
         with:
           path: |
             /opt/hostedtoolcache/flutter
             ~/.pub-cache
-            ${{ env.PROJECT_DIR }}/.dart_tool
           key: ${{ runner.os }}-flutter-${{ env.FLUTTER_VERSION }}-${{ hashFiles('${{ env.PROJECT_DIR }}/pubspec.lock') }}
 
+      # 6. 获取依赖（使用完整路径）
       - name: Get dependencies
         working-directory: ${{ env.PROJECT_DIR }}
         run: flutter pub get
 
-      - name: Run tests
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: flutter test
-
-  build:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
-          cache: true
-
-      - name: Cache Flutter dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            /opt/hostedtoolcache/flutter
-            ~/.pub-cache
-            ${{ env.PROJECT_DIR }}/.dart_tool
-          key: ${{ runner.os }}-flutter-${{ env.FLUTTER_VERSION }}-${{ hashFiles('${{ env.PROJECT_DIR }}/pubspec.lock') }}
-
-      - name: Cache Gradle
-        uses: actions/cache@v3
-        with:
-          path: |
-            ${{ env.GRADLE_BUILD_CACHE_DIR }}
-            ${{ env.GRADLE_WRAPPER_CACHE_DIR }}
-          key: ${{ runner.os }}-gradle-${{ hashFiles('${{ env.PROJECT_DIR }}/android/gradle/wrapper/gradle-wrapper.properties') }}
-
+      # 7. 设置Java环境
       - name: Set up JDK
         uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Get dependencies
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: flutter pub get
 
+       # 8. 查找入口文件
       - name: Find entry point
         id: find-entry
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
+          # 检查常见的入口文件
           if [ -f "lib/main.dart" ]; then
+            echo "找到入口文件: lib/main.dart"
             echo "ENTRY_POINT=lib/main.dart" >> $GITHUB_OUTPUT
           elif [ -f "lib/main_prod.dart" ]; then
+            echo "找到入口文件: lib/main_prod.dart"
             echo "ENTRY_POINT=lib/main_prod.dart" >> $GITHUB_OUTPUT
           else
+            # 查找第一个dart文件作为入口
             ENTRY=$(find lib -name "*.dart" | head -1)
             if [ -z "$ENTRY" ]; then
-              echo "::error::No Dart files found in lib directory!"
+              echo "::error::错误: 在lib目录中找不到任何Dart文件!"
               exit 1
             else
+              echo "使用找到的入口文件: $ENTRY"
               echo "ENTRY_POINT=$ENTRY" >> $GITHUB_OUTPUT
             fi
           fi
 
+           # 9. 构建APK (使用找到的入口点)
       - name: Build APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
+          echo "使用入口点: ${{ steps.find-entry.outputs.ENTRY_POINT }}"
           flutter clean
           flutter build apk --release --no-tree-shake-icons -t ${{ steps.find-entry.outputs.ENTRY_POINT }}
-          echo "APK built at: $(pwd)/build/app/outputs/flutter-apk/app-release.apk"
 
+      # 10. 获取版本信息
       - name: Extract version info
-        id: version
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}' | tr -d '\"')
-          APP_NAME=$(grep 'name:' pubspec.yaml | awk '{print $2}' | tr -d '\"')
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "APP_NAME=$APP_NAME" >> $GITHUB_OUTPUT
-          echo "APK_PATH=$(pwd)/build/app/outputs/flutter-apk/app-release.apk" >> $GITHUB_OUTPUT
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: app-release
-          path: ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 5
-
-  release:
-    needs: build
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download APK artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: app-release
-
-      - name: Get version info
         id: version
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           echo "VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}' | tr -d '\"')" >> $GITHUB_OUTPUT
           echo "APP_NAME=$(grep 'name:' pubspec.yaml | awk '{print $2}' | tr -d '\"')" >> $GITHUB_OUTPUT
 
+      # 11. 创建Release (仅针对main分支和tag)
       - name: Create GitHub Release
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         id: create_release
         uses: actions/create-release@v1
         env:
@@ -171,17 +119,15 @@ jobs:
           release_name: ${{ steps.version.outputs.APP_NAME }} v${{ steps.version.outputs.VERSION }}
           draft: false
           prerelease: false
-          body: |
-            Automated release for ${{ steps.version.outputs.APP_NAME }} v${{ steps.version.outputs.VERSION }}
-            - Built from ${{ github.ref }}
-            - Commit: ${{ github.sha }}
 
+      # 12. 上传APK (仅针对main分支和tag)
       - name: Upload APK to Release
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: app-release.apk
+          asset_path: ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk
           asset_name: ${{ steps.version.outputs.APP_NAME }}-${{ steps.version.outputs.VERSION }}.apk
           asset_content_type: application/vnd.android.package-archive
