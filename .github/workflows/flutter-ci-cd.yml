@@ -45,21 +45,29 @@ jobs:
           flutter --version
           flutter doctor
 
-      # 5. 修复Gradle项目结构 (新增步骤)
+     # 5. 修复Gradle项目结构 (改进版)
       - name: Fix Gradle project structure
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          # 备份关键文件
+          # 备份关键文件 (忽略不存在的assets目录)
           mkdir -p ../temp_backup
-          cp -r lib pubspec.yaml assets ../temp_backup/ || true
+          cp -r lib pubspec.yaml ../temp_backup/
+          [ -d "assets" ] && cp -r assets ../temp_backup/
           
-          # 重新创建项目结构
-          flutter create --platforms android,ios --project-name ${{ env.PROJECT_DIR }} .
+          # 删除android和ios目录以清除旧配置
+          rm -rf android ios
+          
+          # 重新创建项目结构，明确指定组织名称
+          flutter create \
+            --platforms android,ios \
+            --project-name ${{ env.PROJECT_DIR }} \
+            --org ${{ env.ORG_NAME }} \
+            .
           
           # 恢复文件
           cp -r ../temp_backup/lib .
           cp -r ../temp_backup/pubspec.yaml .
-          [ -d ../temp_backup/assets ] && cp -r ../temp_backup/assets .
+          [ -d "../temp_backup/assets" ] && cp -r ../temp_backup/assets .
           rm -rf ../temp_backup
 
       # 6. 获取依赖
