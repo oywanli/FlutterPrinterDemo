@@ -11,11 +11,11 @@ env:
   PROJECT_DIR: "flutter_printer_qpos"
   ORG_NAME: "com.dspread"
 # 签名配置
-  KEYSTORE_BASE64: ${{ vars.KEYSTORE_BASE64 }}
-  KEYSTORE_ALIAS: ${{ vars.KEYSTORE_ALIAS || 'upload' }}
+  KEYSTORE_BASE64: ${{ vars.KEYSTORE_FILE }}
+  KEYSTORE_ALIAS: ${{ vars.KEY_ALIAS }}
   KEYSTORE_PASSWORD: ${{ vars.KEYSTORE_PASSWORD }}
   KEY_PASSWORD: ${{ vars.KEY_PASSWORD }}
-  KEYSTORE_PATH: "android/app/keystores"  # 存储路径
+  KEYSTORE_PATH: "flutter_printer_qpos/example/android/app/keystores"  # 存储路径
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
@@ -185,16 +185,16 @@ jobs:
           mkdir -p ${{ env.KEYSTORE_PATH }}
           
           # 从环境变量解码keystore
-          echo "${{ env.KEYSTORE_BASE64 }}" | base64 -d > ${{ env.KEYSTORE_PATH }}/release.keystore
+          echo "${{ env. }}" | base64 -d > ${{ env.KEYSTORE_PATH }}/app.keystore
           
           # 验证文件
-          if [ ! -f "${{ env.KEYSTORE_PATH }}/release.keystore" ]; then
+          if [ ! -f "${{ env.KEYSTORE_PATH }}/app.keystore" ]; then
             echo "::error::Keystore restoration failed!"
             exit 1
           fi
           
           # 设置权限
-          chmod 600 ${{ env.KEYSTORE_PATH }}/release.keystore
+          chmod 600 ${{ env.KEYSTORE_PATH }}/app.keystore
 
      # 8. 设置签名密钥
       - name: Setup signing keys
@@ -202,14 +202,14 @@ jobs:
         run: |
           # 创建目录并恢复keystore
           mkdir -p ${{ env.KEYSTORE_PATH }}
-          echo "${{ env.KEYSTORE_BASE64 }}" | base64 -d > ${{ env.KEYSTORE_PATH }}/release.keystore
-          chmod 600 ${{ env.KEYSTORE_PATH }}/release.keystore
+          echo "${{ env. }}" | base64 -d > ${{ env.KEYSTORE_PATH }}/app.keystore
+          chmod 600 ${{ env.KEYSTORE_PATH }}/app.keystore
 
           # 创建key.properties
           cat > android/key.properties <<EOF
-          storeFile=${PWD}/${{ env.KEYSTORE_PATH }}/release.keystore
+          storeFile=${PWD}/${{ env.KEYSTORE_PATH }}/app.keystore
           storePassword=${{ env.KEYSTORE_PASSWORD }}
-          keyAlias=${{ env.KEYSTORE_ALIAS }}
+          keyAlias=${{ env.KEY_ALIAS }}
           keyPassword=${{ env.KEY_PASSWORD }}
           EOF
 
@@ -217,9 +217,9 @@ jobs:
           sed -i '/android {/a \
           signingConfigs {\
               release {\
-                  storeFile file("'"${PWD}/${{ env.KEYSTORE_PATH }}/release.keystore"'")\
+                  storeFile file("'"${PWD}/${{ env.KEYSTORE_PATH }}/app.keystore"'")\
                   storePassword "'"${{ env.KEYSTORE_PASSWORD }}"'"\
-                  keyAlias "'"${{ env.KEYSTORE_ALIAS }}"'"\
+                  keyAlias "'"${{ env.KEY_ALIAS }}"'"\
                   keyPassword "'"${{ env.KEY_PASSWORD }}"'"\
               }\
           }\
