@@ -10,11 +10,11 @@ env:
   FLUTTER_VERSION: "3.19.5"
   PROJECT_DIR: "flutter_printer_qpos"
   ORG_NAME: "com.dspread"
-  # 签名配置从环境变量获取
-  KEYSTORE_BASE64: ${{ vars.KEYSTORE_BASE64 || secrets.KEYSTORE_BASE64 }}
+# 签名配置
+  KEYSTORE_BASE64: ${{ vars.KEYSTORE_BASE64 }}
   KEYSTORE_ALIAS: ${{ vars.KEYSTORE_ALIAS || 'upload' }}
-  KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-  KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+  KEYSTORE_PASSWORD: ${{ vars.KEYSTORE_PASSWORD }}
+  KEY_PASSWORD: ${{ vars.KEY_PASSWORD }}
   KEYSTORE_PATH: "android/app/keystores"  # 存储路径
 jobs:
   build-and-release:
@@ -45,6 +45,11 @@ jobs:
             ls -la
             exit 1
           fi
+      # 2. 设置Android环境
+      - uses: android-actions/setup-android@v3
+        with:
+          android-sdk-platform: 34
+          android-sdk-build-tools: 34.0.0
 
       # 4. 设置Flutter环境
       - name: Set up Flutter
@@ -191,11 +196,16 @@ jobs:
           # 设置权限
           chmod 600 ${{ env.KEYSTORE_PATH }}/release.keystore
 
-      # 4. 配置签名
-      - name: Configure Signing
+     # 8. 设置签名密钥
+      - name: Setup signing keys
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          # 生成key.properties
+          # 创建目录并恢复keystore
+          mkdir -p ${{ env.KEYSTORE_PATH }}
+          echo "${{ env.KEYSTORE_BASE64 }}" | base64 -d > ${{ env.KEYSTORE_PATH }}/release.keystore
+          chmod 600 ${{ env.KEYSTORE_PATH }}/release.keystore
+
+          # 创建key.properties
           cat > android/key.properties <<EOF
           storeFile=${PWD}/${{ env.KEYSTORE_PATH }}/release.keystore
           storePassword=${{ env.KEYSTORE_PASSWORD }}
@@ -203,8 +213,24 @@ jobs:
           keyPassword=${{ env.KEY_PASSWORD }}
           EOF
 
-          # 验证配置
-          echo "Generated key.properties:"
+          # 修改build.gradle
+          sed -i '/android {/a \
+          signingConfigs {\
+              release {\
+                  storeFile file("'"${PWD}/${{ env.KEYSTORE_PATH }}/release.keystore"'")\
+                  storePassword "'"${{ env.KEYSTORE_PASSWORD }}"'"\
+                  keyAlias "'"${{ env.KEYSTORE_ALIAS }}"'"\
+                  keyPassword "'"${{ env.KEY_PASSWORD }}"'"\
+              }\
+          }\
+          buildTypes {\
+              release {\
+                  signingConfig signingConfigs.release\
+              }\
+          }' android/app/build.gradle
+
+          echo "签名配置完成"
+          echo "key.properties内容:"
           cat android/key.properties
 
       # 10. 构建APK (使用找到的入口点)
@@ -214,6 +240,22 @@ jobs:
           echo "使用入口点: $ENTRY_POINT"
           flutter clean
           flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT
+
+
+       # 10. 验证APK签名
+      - name: Verify APK signature
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          # 设置Android工具路径
+          export PATH=$PATH:$ANDROID_HOME/build-tools/34.0.0
+          
+          # 验证签名
+          if ! apksigner verify --print-certs build/app/outputs/flutter-apk/app-release.apk; then
+            echo "::error::APK签名验证失败"
+            echo "尝试使用jarsigner验证..."
+            jarsigner -verify -verbose -certs build/app/outputs/flutter-apk/app-release.apk || exit 1
+          fi
+          echo "✅ APK签名验证通过"
           
       # 11. 提取版本信息并设置构建日期
       - name: Extract version info
