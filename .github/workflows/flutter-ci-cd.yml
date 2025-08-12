@@ -11,7 +11,7 @@ env:
   PROJECT_DIR: "flutter_printer_qpos"
   ORG_NAME: "com.dspread"
   KEYSTORE_FILE: "flutter_printer_qpos/example/android/app/app.keystore"  # 密钥文件路径
-  KEYSTORE_ALIAS: ${{ vars.KEY_ALLAS }}     # 注意修正变量名拼写错误(ALLAS→ALIAS)
+  KEYSTORE_ALIAS: ${{ vars.KEY_ALIAS }}     # 注意修正变量名拼写错误(ALLAS→ALIAS)
   KEYSTORE_PASSWORD: ${{ vars.KEYSTORE_PASSWORD }}
   KEY_PASSWORD: ${{ vars.KEY_PASSWORD }}
 jobs:
