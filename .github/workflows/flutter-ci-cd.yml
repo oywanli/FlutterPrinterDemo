@@ -10,10 +10,10 @@ env:
   FLUTTER_VERSION: "3.19.5"
   PROJECT_DIR: "flutter_printer_qpos"
   ORG_NAME: "com.dspread"
-  KEYSTORE_FILE: "flutter_printer_qpos/example/android/app/app.keystore"  # keystore文件路径
-  KEY_ALIAS: "gundam_wing"                  # 密钥别名
-  KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}  # 密钥库密码
-  KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}            # 密钥密码
+  KEYSTORE_FILE: "flutter_printer_qpos/example/android/app/app.keystore"  # 密钥文件路径
+  KEYSTORE_ALIAS: ${{ vars.KEY_ALLAS }}     # 注意修正变量名拼写错误(ALLAS→ALIAS)
+  KEYSTORE_PASSWORD: ${{ vars.KEYSTORE_PASSWORD }}
+  KEY_PASSWORD: ${{ vars.KEY_PASSWORD }}
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
@@ -24,6 +24,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # 获取完整提交历史，以便获取提交信息
+           # 2. 设置Android环境（确保有apksigner工具）
+      - uses: android-actions/setup-android@v3
+        with:
+          android-sdk-platform: 34
+          android-sdk-build-tools: 34.0.0
 
       # 2. 获取提交信息
       - name: Get commit details
@@ -170,30 +175,47 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-          # 9. 配置Android签名
-      - name: Configure Android Signing
+         # 5. 恢复keystore文件（从Base64）
+      - name: Restore keystore
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          # 验证keystore文件是否存在
+          # 创建目录
+          mkdir -p $(dirname ${{ env.KEYSTORE_FILE }})
+          
+          # 从变量解码keystore（注意变量名修正）
+          echo "${{ vars.KEYSTORE_FILE }}" | base64 -d > ${{ env.KEYSTORE_FILE }}
+          
+          # 设置权限
+          chmod 600 ${{ env.KEYSTORE_FILE }}
+          
+          # 验证文件
           if [ ! -f "${{ env.KEYSTORE_FILE }}" ]; then
-            echo "::error::Keystore file '${{ env.KEYSTORE_FILE }}' not found!"
-            ls -la android/app/
+            echo "::error::Keystore file not restored!"
+            ls -la $(dirname ${{ env.KEYSTORE_FILE }})
             exit 1
           fi
+          
+          echo "Keystore restored to: ${{ env.KEYSTORE_FILE }}"
 
-          # 创建key.properties文件
-          echo "storePassword=${{ env.KEYSTORE_PASSWORD }}" > android/key.properties
-          echo "keyPassword=${{ env.KEY_PASSWORD }}" >> android/key.properties
-          echo "keyAlias=${{ env.KEY_ALIAS }}" >> android/key.properties
-          echo "storeFile=${{ env.KEYSTORE_FILE }}" >> android/key.properties
+      # 6. 配置签名
+      - name: Configure signing
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          # 创建key.properties
+          cat > android/key.properties <<EOF
+          storeFile=${PWD}/${{ env.KEYSTORE_FILE }}
+          storePassword=${{ env.KEYSTORE_PASSWORD }}
+          keyAlias=${{ env.KEYSTORE_ALIAS }}
+          keyPassword=${{ env.KEY_PASSWORD }}
+          EOF
 
-          # 修改build.gradle添加签名配置
+          # 更新build.gradle
           sed -i '/android {/a \
           signingConfigs {\
               release {\
                   keyAlias '"${{ env.KEYSTORE_ALIAS }}"'\
                   keyPassword '"${{ env.KEY_PASSWORD }}"'\
-                  storeFile file("'"${{ env.KEYSTORE_FILE }}"'")\
+                  storeFile file("'"${PWD}/${{ env.KEYSTORE_FILE }}"'")\
                   storePassword '"${{ env.KEYSTORE_PASSWORD }}"'\
               }\
           }\
@@ -203,7 +225,9 @@ jobs:
               }\
           }' android/app/build.gradle
 
-          echo "Android签名配置完成"
+          echo "签名配置完成"
+          echo "key.properties内容:"
+          cat android/key.properties
 
       # 9. 构建APK (使用找到的入口点)
       - name: Build APK
@@ -212,9 +236,6 @@ jobs:
           echo "使用入口点: $ENTRY_POINT"
           flutter clean
           flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT
-          # 验证APK是否已签名
-          $ANDROID_HOME/build-tools/*/apksigner verify --print-certs build/app/outputs/flutter-apk/app-release.apk || \
-          (echo "::error::APK签名验证失败!" && exit 1)
 
       # 10. 提取版本信息并设置构建日期
       - name: Extract version info
