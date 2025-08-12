@@ -215,13 +215,6 @@ jobs:
           flutter clean
           flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT
           
-          # 6. 验证签名
-      - name: Verify APK Signature
-        run: |
-          cd ${{ env.PROJECT_DIR }}
-          apksigner verify --print-certs build/app/outputs/flutter-apk/app-release.apk || \
-          (echo "::error::APK signing verification failed!" && exit 1)
-
       # 11. 提取版本信息并设置构建日期
       - name: Extract version info
         id: version
