@@ -15,9 +15,7 @@ env:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
-    env:
-      PROJECT_DIR: "flutter_printer_qpos"
-      KEYSTORE_PATH: "${{ github.workspace }}/flutter_printer_qpos/android/app/src/app.keystore"
+
     steps:
       # 1. 检出代码（获取完整提交历史）
       - name: Checkout code
@@ -170,42 +168,15 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      # 9. Configure Android signing
-      - name: Configure Android signing
-        working-directory: ${{ env.PROJECT_DIR }}/android
-        run: |
-          # Verify keystore file exists
-          if [ ! -f "${{ env.KEYSTORE_PATH }}" ]; then
-            echo "::error::Keystore file not found at ${{ env.KEYSTORE_PATH }}"
-            ls -la app/src/
-            exit 1
-          fi
-
-          # Create key.properties file
-          cat <<EOF > key.properties
-          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.KEY_PASSWORD }}
-          keyAlias=${{ secrets.KEY_ALIAS }}
-          storeFile=${{ env.KEYSTORE_PATH }}
-          EOF
-
-          # Verify key.properties
-          echo "Generated key.properties:"
-          cat key.properties
-
-      # 10. Build signed APK
+      # 9. 构建APK (使用找到的入口点)
       - name: Build APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          echo "Using entry point: $ENTRY_POINT"
+          echo "使用入口点: $ENTRY_POINT"
           flutter clean
-          flutter build apk --release \
-            --no-tree-shake-icons \
-            -t $ENTRY_POINT \
-            --build-number=$(date +%Y%m%d%H%M) \
-            --build-name=$(grep 'version:' pubspec.yaml | awk '{print $2}' | tr -d '\"')
+          flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT
 
-      # 11. Extract version info
+      # 10. 提取版本信息并设置构建日期
       - name: Extract version info
         id: version
         working-directory: ${{ env.PROJECT_DIR }}
@@ -214,10 +185,10 @@ jobs:
           APP_NAME=$(grep 'name:' pubspec.yaml | awk '{print $2}' | tr -d '\"')
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "APP_NAME=$APP_NAME" >> $GITHUB_OUTPUT
-          echo "APK_PATH=build/app/outputs/flutter-apk/app-release.apk" >> $GITHUB_OUTPUT
+          echo "APK_PATH=${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk" >> $GITHUB_OUTPUT
           echo "BUILD_DATE=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
 
-      # 12. Create release
+      # 11. 创建发布
       - name: Create Release
         id: create_release
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
@@ -230,7 +201,7 @@ jobs:
           body: |
             ## 🚀 ${{ steps.version.outputs.APP_NAME }} v${{ steps.version.outputs.VERSION }}
             
-            **Commit Message**
+            **Commit Messgae**
             - commit hash: [${{ steps.commit.outputs.commit_hash }}](${{ steps.commit.outputs.commit_url }})
             - commit message: ${{ steps.commit.outputs.commit_message }}
             - commit author: ${{ steps.commit.outputs.commit_author }}
@@ -238,9 +209,9 @@ jobs:
             
             **APK Version**
             - Version: ${{ steps.version.outputs.VERSION }}
-            - Build Date: ${{ steps.version.outputs.BUILD_DATE }}
       
           draft: false
           prerelease: false
           fail_on_unmatched_files: true
-          files: ${{ env.PROJECT_DIR }}/${{ steps.version.outputs.APK_PATH }}
+          files: |
+            ${{ steps.version.outputs.APK_PATH }}
