@@ -1,21 +1,19 @@
 name: Flutter CI/CD Pipeline
-
 on:
   push:
     branches: [main]
     tags: ['v*.*.*']
   pull_request:
     branches: [main]
+
 env:
   FLUTTER_VERSION: "3.19.5"
   PROJECT_DIR: "flutter_printer_qpos"
   ORG_NAME: "com.dspread"
-# 签名配置
-  KEYSTORE_BASE64: ${{ vars.KEYSTORE_FILE }}
-  KEYSTORE_ALIAS: ${{ vars.KEY_ALIAS }}
-  KEYSTORE_PASSWORD: ${{ vars.KEYSTORE_PASSWORD }}
-  KEY_PASSWORD: ${{ vars.KEY_PASSWORD }}
-  KEYSTORE_PATH: "flutter_printer_qpos/example/android/app/keystores"  # 存储路径
+  KEYSTORE_FILE: "flutter_printer_qpos/example/android/app/app.keystore"  # keystore文件路径
+  KEY_ALIAS: "gundam_wing"                  # 密钥别名
+  KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}  # 密钥库密码
+  KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}            # 密钥密码
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
@@ -45,11 +43,6 @@ jobs:
             ls -la
             exit 1
           fi
-      # 2. 设置Android环境
-      - uses: android-actions/setup-android@v3
-        with:
-          android-sdk-platform: 34
-          android-sdk-build-tools: 34.0.0
 
       # 4. 设置Flutter环境
       - name: Set up Flutter
@@ -177,50 +170,31 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-    # 3. 恢复keystore文件
-      - name: Setup Keystore
+          # 9. 配置Android签名
+      - name: Configure Android Signing
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          # 创建目录
-          mkdir -p ${{ env.KEYSTORE_PATH }}
-          
-          # 从环境变量解码keystore
-          echo "${{ env. }}" | base64 -d > ${{ env.KEYSTORE_PATH }}/app.keystore
-          
-          # 验证文件
-          if [ ! -f "${{ env.KEYSTORE_PATH }}/app.keystore" ]; then
-            echo "::error::Keystore restoration failed!"
+          # 验证keystore文件是否存在
+          if [ ! -f "${{ env.KEYSTORE_FILE }}" ]; then
+            echo "::error::Keystore file '${{ env.KEYSTORE_FILE }}' not found!"
+            ls -la android/app/
             exit 1
           fi
-          
-          # 设置权限
-          chmod 600 ${{ env.KEYSTORE_PATH }}/app.keystore
 
-     # 8. 设置签名密钥
-      - name: Setup signing keys
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          # 创建目录并恢复keystore
-          mkdir -p ${{ env.KEYSTORE_PATH }}
-          echo "${{ env. }}" | base64 -d > ${{ env.KEYSTORE_PATH }}/app.keystore
-          chmod 600 ${{ env.KEYSTORE_PATH }}/app.keystore
+          # 创建key.properties文件
+          echo "storePassword=${{ env.KEYSTORE_PASSWORD }}" > android/key.properties
+          echo "keyPassword=${{ env.KEY_PASSWORD }}" >> android/key.properties
+          echo "keyAlias=${{ env.KEY_ALIAS }}" >> android/key.properties
+          echo "storeFile=${{ env.KEYSTORE_FILE }}" >> android/key.properties
 
-          # 创建key.properties
-          cat > android/key.properties <<EOF
-          storeFile=${PWD}/${{ env.KEYSTORE_PATH }}/app.keystore
-          storePassword=${{ env.KEYSTORE_PASSWORD }}
-          keyAlias=${{ env.KEY_ALIAS }}
-          keyPassword=${{ env.KEY_PASSWORD }}
-          EOF
-
-          # 修改build.gradle
+          # 修改build.gradle添加签名配置
           sed -i '/android {/a \
           signingConfigs {\
               release {\
-                  storeFile file("'"${PWD}/${{ env.KEYSTORE_PATH }}/app.keystore"'")\
-                  storePassword "'"${{ env.KEYSTORE_PASSWORD }}"'"\
-                  keyAlias "'"${{ env.KEY_ALIAS }}"'"\
-                  keyPassword "'"${{ env.KEY_PASSWORD }}"'"\
+                  keyAlias '"${{ env.KEYSTORE_ALIAS }}"'\
+                  keyPassword '"${{ env.KEY_PASSWORD }}"'\
+                  storeFile file("'"${{ env.KEYSTORE_FILE }}"'")\
+                  storePassword '"${{ env.KEYSTORE_PASSWORD }}"'\
               }\
           }\
           buildTypes {\
@@ -229,35 +203,20 @@ jobs:
               }\
           }' android/app/build.gradle
 
-          echo "签名配置完成"
-          echo "key.properties内容:"
-          cat android/key.properties
+          echo "Android签名配置完成"
 
-      # 10. 构建APK (使用找到的入口点)
+      # 9. 构建APK (使用找到的入口点)
       - name: Build APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           echo "使用入口点: $ENTRY_POINT"
           flutter clean
           flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT
+          # 验证APK是否已签名
+          $ANDROID_HOME/build-tools/*/apksigner verify --print-certs build/app/outputs/flutter-apk/app-release.apk || \
+          (echo "::error::APK签名验证失败!" && exit 1)
 
-
-       # 10. 验证APK签名
-      - name: Verify APK signature
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          # 设置Android工具路径
-          export PATH=$PATH:$ANDROID_HOME/build-tools/34.0.0
-          
-          # 验证签名
-          if ! apksigner verify --print-certs build/app/outputs/flutter-apk/app-release.apk; then
-            echo "::error::APK签名验证失败"
-            echo "尝试使用jarsigner验证..."
-            jarsigner -verify -verbose -certs build/app/outputs/flutter-apk/app-release.apk || exit 1
-          fi
-          echo "✅ APK签名验证通过"
-          
-      # 11. 提取版本信息并设置构建日期
+      # 10. 提取版本信息并设置构建日期
       - name: Extract version info
         id: version
         working-directory: ${{ env.PROJECT_DIR }}
@@ -269,7 +228,7 @@ jobs:
           echo "APK_PATH=${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk" >> $GITHUB_OUTPUT
           echo "BUILD_DATE=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
 
-      # 12. 创建发布
+      # 11. 创建发布
       - name: Create Release
         id: create_release
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
@@ -282,18 +241,14 @@ jobs:
           body: |
             ## 🚀 ${{ steps.version.outputs.APP_NAME }} v${{ steps.version.outputs.VERSION }}
             
-            **Build Information**
-            - Build Date: ${{ steps.version.outputs.BUILD_DATE }}
+            **Commit Messgae**
+            - commit hash: [${{ steps.commit.outputs.commit_hash }}](${{ steps.commit.outputs.commit_url }})
+            - commit message: ${{ steps.commit.outputs.commit_message }}
+            - commit author: ${{ steps.commit.outputs.commit_author }}
+            - commit date: ${{ steps.commit.outputs.commit_date }}
             
-            **Commit Information**
-            - Commit Hash: [${{ steps.commit.outputs.commit_hash }}](${{ steps.commit.outputs.commit_url }})
-            - Commit Message: ${{ steps.commit.outputs.commit_message }}
-            - Commit Author: ${{ steps.commit.outputs.commit_author }}
-            - Commit Date: ${{ steps.commit.outputs.commit_date }}
-            
-            **APK Information**
+            **APK Version**
             - Version: ${{ steps.version.outputs.VERSION }}
-            - Signed: ✅ Yes (with ${{ env.KEYSTORE_ALIAS }} key)
       
           draft: false
           prerelease: false
