@@ -12,10 +12,10 @@ env:
   PROJECT_DIR: "flutter_printer_qpos"
   ORG_NAME: "com.dspread"
   # 新增签名相关环境变量
-  KEYSTORE_FILE: "flutter_printer_qpos/example/android/app/src/app.keystore"  # 假设key.jks存储在android目录下
-  KEYSTORE_ALIAS: "gundam_wing"         # 替换为您的密钥别名
-  KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}  # 从GitHub Secrets获取
-  KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}            # 从GitHub Secrets获取
+  KEYSTORE_FILE: "example/android/app/src/app.keystore"  # 相对路径调整
+  KEYSTORE_ALIAS: "gundam_wing"
+  KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+  KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
 jobs:
   build-and-release:
@@ -173,24 +173,29 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      # 9. 配置签名信息
+      # 9. 配置签名信息 (更新后的版本)
       - name: Configure signing
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          # 验证密钥库文件是否存在
+          # 打印当前目录结构用于调试
+          echo "当前目录结构:"
+          ls -la
+          echo "检查keystore文件路径: ${{ env.KEYSTORE_FILE }}"
+          
+          # 验证密钥库文件是否存在 (使用相对路径)
           if [ ! -f "${{ env.KEYSTORE_FILE }}" ]; then
             echo "::error::Keystore file '${{ env.KEYSTORE_FILE }}' not found!"
-            ls -la android/
+            echo "搜索整个项目中的keystore文件..."
+            find . -name "*.keystore" -o -name "*.jks"
             exit 1
           fi
           
-          # 创建key.properties文件
+          # 创建key.properties文件 (使用相对路径)
           echo "storePassword=${{ env.KEYSTORE_PASSWORD }}" > android/key.properties
           echo "keyPassword=${{ env.KEY_PASSWORD }}" >> android/key.properties
           echo "keyAlias=${{ env.KEYSTORE_ALIAS }}" >> android/key.properties
-          echo "storeFile=${{ env.KEYSTORE_FILE }}" >> android/key.properties
+          echo "storeFile=../../${{ env.KEYSTORE_FILE }}" >> android/key.properties  # 从android目录到keystore的相对路径
           
-          # 验证key.properties文件
           echo "Generated key.properties:"
           cat android/key.properties
           
@@ -198,10 +203,10 @@ jobs:
           sed -i '/android {/a \
           signingConfigs {\
               release {\
-                  keyAlias ${{ env.KEYSTORE_ALIAS }}\
-                  keyPassword ${{ env.KEY_PASSWORD }}\
-                  storeFile file("${{ env.KEYSTORE_FILE }}")\
-                  storePassword ${{ env.KEYSTORE_PASSWORD }}\
+                  keyAlias '"${{ env.KEYSTORE_ALIAS }}"'\
+                  keyPassword '"${{ env.KEY_PASSWORD }}"'\
+                  storeFile file("'"${{ env.KEYSTORE_FILE }}"'")\
+                  storePassword '"${{ env.KEYSTORE_PASSWORD }}"'\
               }\
           }\
           buildTypes {\
