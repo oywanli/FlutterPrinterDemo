@@ -169,10 +169,16 @@ jobs:
           java-version: '17'
 
 
-       #  解码并保存 keystore 文件
+       # 7. 解码并保存keystore文件
       - name: Decode and Save Keystore
         run: |
-          echo "${{ vars.KEYSTORE_FILE }}" | base64 -d > flutter_printer_qpos/example/android/app/app.keystore
+          mkdir -p $(dirname "${{ env.KEYSTORE_PATH }}")
+          echo "${{ vars.KEYSTORE_FILE }}" | base64 -d > "${{ env.KEYSTORE_PATH }}"
+          # 验证keystore文件
+          if [ ! -s "${{ env.KEYSTORE_PATH }}" ]; then
+            echo "::error::Keystore file is empty or not created properly"
+            exit 1
+          fi
 
       - name: Build the release signed APK
         working-directory: ${{ env.PROJECT_DIR }}
@@ -180,11 +186,16 @@ jobs:
           echo "使用入口点: $ENTRY_POINT"
           flutter clean
           flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT \
-            -Pandroid.injected.signing.store.file=${{ vars.KEYSTORE_FILE }} \
-            -Pandroid.injected.signing.store.password=${{ vars.KEYSTORE_PASSWORD }} \
-            -Pandroid.injected.signing.key.alias=${{ vars.KEY_ALIAS }} \
-            -Pandroid.injected.signing.key.password=${{ vars.KEY_PASSWORD }}
-   
+            --keystore="${{ env.KEYSTORE_PATH }}" \
+            --store-password="${{ secrets.KEYSTORE_PASSWORD }}" \
+            --key-alias="${{ secrets.KEY_ALIAS }}" \
+            --key-password="${{ secrets.KEY_PASSWORD }}"
+
+          # Verify APK was built
+          if [ ! -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
+            echo "::error::APK file not found after build!"
+            exit 1
+          fi
 
       # # 9. 构建APK (使用找到的入口点)
       # - name: Build APK
