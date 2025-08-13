@@ -168,11 +168,11 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-       # 解码 keystore
       - name: Decode keystore from secret
         run: |
+          mkdir -p flutter_printer_qpos/example/android/app
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > flutter_printer_qpos/example/android/app/app.keystore
-
+      
       # 创建 key.properties 文件
       - name: Create key.properties
         run: |
@@ -181,21 +181,11 @@ jobs:
           keyPassword=${{ secrets.KEY_PASSWORD }}
           keyAlias=${{ secrets.KEY_ALIAS }}
           storeFile=app.keystore
-          EOF    
-
-            # 安装依赖
-      - name: Install dependencies
-        run: flutter pub get
-        working-directory: flutter_printer_qpos/example
-
-      # 分析插件本体
-      - name: Analyze (non-fatal)
-        run: flutter analyze || true
-        working-directory: flutter_printer_qpos
+          EOF   
 
       # 9. 构建APK (使用找到的入口点)
       - name: Build APK
-        working-directory: ${{ env.PROJECT_DIR }}
+        working-directory: ${{ env.PROJECT_DIR }}/example
         run: |
           echo "使用入口点: $ENTRY_POINT"
           flutter clean
