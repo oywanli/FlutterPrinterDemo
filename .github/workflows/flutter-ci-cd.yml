@@ -70,7 +70,6 @@ jobs:
               break
             fi
           done
-          
           # 如果标准路径没找到，使用find命令搜索
           if [ -z "$ENTRY_POINT" ]; then
             ENTRY_POINT=$(find . -iname "main.dart" -o -iname "main_prod.dart" | head -1)
