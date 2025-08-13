@@ -169,16 +169,6 @@ jobs:
           java-version: '17'
 
 
-       # 7. 解码并保存keystore文件
-      - name: Decode and Save Keystore
-        run: |
-          echo "${{ vars.KEYSTORE_FILE }}" | base64 -d > "${{ env.KEYSTORE_PATH }}"
-          # 验证keystore文件
-          if [ ! -s "${{ env.KEYSTORE_PATH }}" ]; then
-            echo "::error::Keystore file is empty or not created properly"
-            exit 1
-          fi
-
       - name: Build the release signed APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
