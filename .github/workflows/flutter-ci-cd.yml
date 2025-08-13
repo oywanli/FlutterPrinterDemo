@@ -193,12 +193,18 @@ jobs:
           keyAlias=${{ secrets.KEY_ALIAS }}
           storeFile=app.keystore
           EOF
+     # 9. 构建APK (使用找到的入口点)
+      - name: Build APK
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          echo "使用入口点: $ENTRY_POINT"
+          flutter clean
+          flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT
 
-
-       # 构建 APK（已签名）
-      - name: Build signed APK
-        run: flutter build apk --release
-        working-directory: flutter_printer_qpos/example
+      #  # 构建 APK（已签名）
+      # - name: Build signed APK
+      #   run: flutter build apk --release
+      #   working-directory: flutter_printer_qpos/example
 
       # 10. 提取版本信息并设置构建日期
       - name: Extract version info
