@@ -123,7 +123,7 @@ jobs:
      # 12. 解码并保存 keystore 文件
       - name: Decode and Save Keystore
         run: |
-          echo "${{ vars.KEYSTORE_FILE }}" | base64 -d > pos_android_studio_demo/app.keystore
+          echo "${{ vars.KEYSTORE_FILE }}" | base64 -d > flutter_printer_qpos/example/android/app/app.keystore
 
       - name: Build the release signed APK
         working-directory: ${{ env.PROJECT_DIR }}
