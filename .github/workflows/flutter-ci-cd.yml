@@ -175,10 +175,10 @@ jobs:
           echo "使用入口点: $ENTRY_POINT"
           flutter clean
           flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT \
-            --keystore="${{ env.KEYSTORE_PATH }}" \
-            --store-password="${{ secrets.KEYSTORE_PASSWORD }}" \
-            --key-alias="${{ secrets.KEY_ALIAS }}" \
-            --key-password="${{ secrets.KEY_PASSWORD }}"
+            --keystore="${{ vars.KEYSTORE_FILE }}" \
+            --store-password="${{ vars.KEYSTORE_PASSWORD }}" \
+            --key-alias="${{ vars.KEY_ALIAS }}" \
+            --key-password="${{ vars.KEY_PASSWORD }}"
 
           # Verify APK was built
           if [ ! -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
