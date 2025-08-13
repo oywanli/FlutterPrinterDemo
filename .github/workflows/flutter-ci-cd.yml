@@ -84,7 +84,7 @@ jobs:
           fi
           
           # 从secrets解码keystore
-          echo "${{ secrets.KEYSTORE_FILE_CONTENTS }}" | base64 -di > "${{ env.KEYSTORE_FILE }}"
+          echo "${{ secrets.KEYSTORE_FILE }}" | base64 -di > "${{ env.KEYSTORE_FILE }}"
           
           # 验证文件
           if [ ! -s "${{ env.KEYSTORE_FILE }}" ]; then
