@@ -169,10 +169,10 @@ jobs:
           java-version: '17'
 
 
-               # 解码 keystore
+     # 解码 keystore
       - name: Decode keystore from secret
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > flutter_plugin_qpos/example/android/app/app.keystore
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > flutter_printer_qpos/example/android/app/app.keystore
 
       # 创建 key.properties 文件
       - name: Create key.properties
