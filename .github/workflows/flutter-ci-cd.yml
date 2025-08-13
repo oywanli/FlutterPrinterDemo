@@ -1,31 +1,62 @@
-name: Build and Release Flutter APK
+name: Flutter CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - main
-  workflow_dispatch:
+    branches: [main]
+    tags: ['v*.*.*']
+  pull_request:
+    branches: [main]
+
+env:
+  FLUTTER_VERSION: "3.19.5"
+  PROJECT_DIR: "flutter_printer_qpos"
+  ORG_NAME: "com.dspread"
 
 jobs:
-  build:
+  build-and-release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write  # 允许 GITHUB_TOKEN 发布 release
 
     steps:
-      - name: Checkout source
+      # 1. 检出代码（获取完整提交历史）
+      - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取完整提交历史，以便获取提交信息
 
-      - name: Setup Flutter
+      # 2. 获取提交信息
+      - name: Get commit details
+        id: commit
+        run: |
+          echo "commit_hash=$(git log -1 --pretty=%H)" >> $GITHUB_OUTPUT
+          echo "commit_message=$(git log -1 --pretty=%s)" >> $GITHUB_OUTPUT
+          echo "commit_author=$(git log -1 --pretty=%an)" >> $GITHUB_OUTPUT
+          echo "commit_date=$(git log -1 --pretty=%cd --date=format:'%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
+          echo "commit_url=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$GITHUB_SHA" >> $GITHUB_OUTPUT
+
+      # 3. 验证项目目录
+      - name: Verify project directory
+        run: |
+          if [ ! -d "${{ env.PROJECT_DIR }}" ]; then
+            echo "::error::Project directory '${{ env.PROJECT_DIR }}' not found!"
+            ls -la
+            exit 1
+          fi
+
+      # 4. 设置Flutter环境
+      - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.13.0'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
 
-      - name: Disable analytics
-        run: flutter config --no-analytics
+      # 5. 验证环境
+      - name: Verify Flutter
+        run: |
+          flutter --version
+          flutter doctor
 
-
-         # 6. 智能修复项目结构（兼容大小写）
+      # 6. 智能修复项目结构（兼容大小写）
       - name: Fix and Prepare Project
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
@@ -124,7 +155,20 @@ jobs:
           rm -rf ../temp_backup
           echo "项目准备完成!"
 
-      # 解码 keystore
+      # 7. 获取依赖
+      - name: Get dependencies
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          flutter pub get
+
+      # 8. 设置Java环境
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+       # 解码 keystore
       - name: Decode keystore from secret
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > flutter_printer_qpos/example/android/app/app.keystore
@@ -137,9 +181,9 @@ jobs:
           keyPassword=${{ secrets.KEY_PASSWORD }}
           keyAlias=${{ secrets.KEY_ALIAS }}
           storeFile=app.keystore
-          EOF
+          EOF    
 
-      # 安装依赖
+            # 安装依赖
       - name: Install dependencies
         run: flutter pub get
         working-directory: flutter_printer_qpos/example
@@ -149,47 +193,50 @@ jobs:
         run: flutter analyze || true
         working-directory: flutter_printer_qpos
 
-      # 构建 APK（已签名）
-      - name: Build signed APK
-        run: flutter build apk --release
-        working-directory: flutter_printer_qpos/example
-
-      # 自动生成 TAG（递增规则 0.0.1 -> 0.0.2 ... -> 0.1.0）
-      - name: Determine next tag
-        id: tag
+      # 9. 构建APK (使用找到的入口点)
+      - name: Build APK
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
-         # 获取远程 tag 列表
-          git fetch --tags
-          latest_tag=$(git tag | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
-          if [[ -z "$latest_tag" ]]; then
-            next_tag="1.0.0"
-          else
-            IFS='.' read -r major minor patch <<<"${latest_tag}"
-            if [[ $patch -lt 9 ]]; then
-              patch=$((patch+1))
-            else
-              patch=0
-              minor=$((minor+1))
-            fi
-            next_tag="${major}.${minor}.${patch}"
-          fi
-          echo "Next tag: $next_tag"
-          echo "tag=$next_tag" >> $GITHUB_OUTPUT
+          echo "使用入口点: $ENTRY_POINT"
+          flutter clean
+          flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT
 
-      # 创建 Git Tag（必要）
-      - name: Create Git tag
+      # 10. 提取版本信息并设置构建日期
+      - name: Extract version info
+        id: version
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git tag ${{ steps.tag.outputs.tag }}
-          git push origin ${{ steps.tag.outputs.tag }}
+          VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}' | tr -d '\"')
+          APP_NAME=$(grep 'name:' pubspec.yaml | awk '{print $2}' | tr -d '\"')
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "APP_NAME=$APP_NAME" >> $GITHUB_OUTPUT
+          echo "APK_PATH=${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk" >> $GITHUB_OUTPUT
+          echo "BUILD_DATE=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
 
-      # 创建 GitHub Release 并上传 APK
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: Release ${{ steps.tag.outputs.tag }}
-          files: flutter_printer_qpos/example/build/app/outputs/flutter-apk/app-release.apk
+      # 11. 创建发布
+      - name: Create Release
+        id: create_release
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v1
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: ${{ steps.version.outputs.APP_NAME }} v${{ steps.version.outputs.VERSION }}
+          body: |
+            ## 🚀 ${{ steps.version.outputs.APP_NAME }} v${{ steps.version.outputs.VERSION }}
+            
+            **Commit Messgae**
+            - commit hash: [${{ steps.commit.outputs.commit_hash }}](${{ steps.commit.outputs.commit_url }})
+            - commit message: ${{ steps.commit.outputs.commit_message }}
+            - commit author: ${{ steps.commit.outputs.commit_author }}
+            - commit date: ${{ steps.commit.outputs.commit_date }}
+            
+            **APK Version**
+            - Version: ${{ steps.version.outputs.VERSION }}
+      
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+          files: |
+            ${{ steps.version.outputs.APK_PATH }}
