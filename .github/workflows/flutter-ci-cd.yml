@@ -178,32 +178,26 @@ jobs:
 
 
 
-      - name: Build APK with Keystore
-        working-directory: ${{ env.PROJECT_DIR }}
+    # 解码 keystore
+      - name: Decode keystore from secret
         run: |
-          echo "使用入口点: $ENTRY_POINT"
-          echo "清理构建缓存..."
-          flutter clean
-    
-          echo "设置签名配置..."
-          # 创建 key.properties 文件
-          cat <<EOF > android/key.properties
-          storePassword=${{ vars.KEY_STORE_PASSWORD }}
-          keyPassword=${{ vars.KEY_PASSWORD }}
-          keyAlias=${{ vars.KEY_ALIAS }}
-          storeFile=flutter_printer_qpos/example/android/app/app.keystore
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > flutter_printer_qpos/example/android/app/app.keystore
+
+      # 创建 key.properties 文件
+      - name: Create key.properties
+        run: |
+          cat > flutter_plugin_qpos/example/android/key.properties <<EOF
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          storeFile=app.keystore
           EOF
-    
-          echo "构建发布版APK..."
-          flutter build apk --release \
-          --no-tree-shake-icons \
-          -t $ENTRY_POINT \
-          --target-platform android-arm,android-arm64
-    
-          echo "APK构建完成，输出位于: build/app/outputs/flutter-apk/"
-    
-          # 可选：列出生成的APK文件
-          ls -la build/app/outputs/flutter-apk/
+
+
+       # 构建 APK（已签名）
+      - name: Build signed APK
+        run: flutter build apk --release
+        working-directory: flutter_printer_qpos/example
 
       # 10. 提取版本信息并设置构建日期
       - name: Extract version info
