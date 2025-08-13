@@ -24,7 +24,7 @@ jobs:
       - name: Disable analytics
         run: flutter config --no-analytics
 
-      # 解码 keystore
+       # 解码 keystore
       - name: Decode keystore from secret
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > flutter_printer_qpos/example/android/app/app.keystore
