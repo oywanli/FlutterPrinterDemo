@@ -172,7 +172,6 @@ jobs:
        # 7. 解码并保存keystore文件
       - name: Decode and Save Keystore
         run: |
-          mkdir -p $(dirname "${{ env.KEYSTORE_PATH }}")
           echo "${{ vars.KEYSTORE_FILE }}" | base64 -d > "${{ env.KEYSTORE_PATH }}"
           # 验证keystore文件
           if [ ! -s "${{ env.KEYSTORE_PATH }}" ]; then
