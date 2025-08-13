@@ -24,6 +24,106 @@ jobs:
       - name: Disable analytics
         run: flutter config --no-analytics
 
+
+         # 6. 智能修复项目结构（兼容大小写）
+      - name: Fix and Prepare Project
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          # 1. 查找入口文件（兼容大小写）
+          echo "查找入口文件..."
+          ENTRY_POINT=""
+          # 检查可能的入口文件路径（不区分大小写）
+          for path in "example/lib/main.dart" "Example/lib/main.dart" "lib/main.dart"; do
+            if [ -f "$path" ]; then
+              ENTRY_POINT="$path"
+              break
+            fi
+          done
+          
+          # 如果标准路径没找到，使用find命令搜索
+          if [ -z "$ENTRY_POINT" ]; then
+            ENTRY_POINT=$(find . -iname "main.dart" -o -iname "main_prod.dart" | head -1)
+            if [ -z "$ENTRY_POINT" ]; then
+              echo "::error::未找到任何Dart入口文件!"
+              exit 1
+            fi
+          fi
+          echo "找到入口文件: $ENTRY_POINT"
+          echo "ENTRY_POINT=$ENTRY_POINT" >> $GITHUB_ENV
+
+          # 2. 备份关键文件（兼容大小写）
+          echo "备份关键文件..."
+          mkdir -p ../temp_backup
+          
+          # 备份lib和pubspec.yaml
+          cp -r lib pubspec.yaml ../temp_backup/
+          
+          # 备份assets目录（兼容大小写）
+          for dir in assets Assets; do
+            if [ -d "$dir" ]; then
+              cp -r "$dir" ../temp_backup/
+              break
+            fi
+          done
+          
+          # 备份test目录
+          [ -d "test" ] && cp -r test ../temp_backup/
+          
+          # 3. 修复pages目录大小写问题
+          echo "修复pages目录大小写问题..."
+          if [ -d "example/pages" ] && [ ! -d "example/Pages" ]; then
+            mv "example/pages" "example/Pages"
+          elif [ -d "lib/pages" ] && [ ! -d "lib/Pages" ]; then
+            mv "lib/pages" "lib/Pages"
+          fi
+          
+          # 4. 修复导入语句中的大小写问题
+          echo "修复导入语句..."
+          for file in $(find . -name "*.dart"); do
+            # 修复pages/Pages大小写问题
+            sed -i -E "s|import ['\"][pP]ages/PrintItemsPage\.dart['\"]|import 'Pages/PrintItemsPage.dart'|g" "$file"
+          done
+          
+          # 5. 重建项目结构
+          echo "重建项目结构..."
+          cd ..
+          flutter create \
+            --platforms android,ios \
+            --project-name ${{ env.PROJECT_DIR }} \
+            --org ${{ env.ORG_NAME }} \
+            --overwrite \
+            temp_flutter_project
+          
+          # 6. 恢复项目
+          echo "恢复项目..."
+          cp -r temp_flutter_project/. ${{ env.PROJECT_DIR }}/
+          rm -rf temp_flutter_project
+          
+          # 7. 恢复原有代码
+          cd ${{ env.PROJECT_DIR }}
+          rm -rf lib test
+          cp -r ../temp_backup/lib .
+          [ -d "../temp_backup/test" ] && cp -r ../temp_backup/test .
+          cp ../temp_backup/pubspec.yaml .
+          
+          # 恢复assets目录（兼容大小写）
+          for dir in assets Assets; do
+            if [ -d "../temp_backup/$dir" ]; then
+              cp -r "../temp_backup/$dir" .
+              break
+            fi
+          done
+          
+          # 8. 确保入口文件存在
+          if [ ! -f "$ENTRY_POINT" ]; then
+            echo "::error::入口文件 $ENTRY_POINT 不存在!"
+            exit 1
+          fi
+          
+          # 9. 清理备份
+          rm -rf ../temp_backup
+          echo "项目准备完成!"
+
       # 解码 keystore
       - name: Decode keystore from secret
         run: |
