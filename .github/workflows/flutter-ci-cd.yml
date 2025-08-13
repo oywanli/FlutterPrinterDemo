@@ -180,7 +180,7 @@ jobs:
           echo "使用入口点: $ENTRY_POINT"
           flutter clean
           flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT \
-            -Pandroid.injected.signing.store.file=app.keystore \
+            -Pandroid.injected.signing.store.file=${{ vars.KEYSTORE_FILE }} \
             -Pandroid.injected.signing.store.password=${{ vars.KEYSTORE_PASSWORD }} \
             -Pandroid.injected.signing.key.alias=${{ vars.KEY_ALIAS }} \
             -Pandroid.injected.signing.key.password=${{ vars.KEY_PASSWORD }}
