@@ -168,31 +168,13 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-
-      - name: Build the release signed APK
+      # 9. 构建APK (使用找到的入口点)
+      - name: Build APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           echo "使用入口点: $ENTRY_POINT"
           flutter clean
-          flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT \
-            --keystore="${{ vars.KEYSTORE_FILE }}" \
-            --store-password="${{ vars.KEYSTORE_PASSWORD }}" \
-            --key-alias="${{ vars.KEY_ALIAS }}" \
-            --key-password="${{ vars.KEY_PASSWORD }}"
-
-          # Verify APK was built
-          if [ ! -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
-            echo "::error::APK file not found after build!"
-            exit 1
-          fi
-
-      # # 9. 构建APK (使用找到的入口点)
-      # - name: Build APK
-      #   working-directory: ${{ env.PROJECT_DIR }}
-      #   run: |
-      #     echo "使用入口点: $ENTRY_POINT"
-      #     flutter clean
-      #     flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT
+          flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT
 
       # 10. 提取版本信息并设置构建日期
       - name: Extract version info
