@@ -11,9 +11,6 @@ env:
   PROJECT_DIR: "flutter_printer_qpos"
   ORG_NAME: "com.dspread"
   KEYSTORE_FILE: "flutter_printer_qpos/example/android/app/app.keystore"
-  KEYSTORE_ALIAS: ${{ vars.KEY_ALIAS }}
-  KEYSTORE_PASSWORD: ${{ vars.KEYSTORE_PASSWORD }}
-  KEY_PASSWORD: ${{ vars.KEY_PASSWORD }}
 
 jobs:
   build-and-release:
@@ -72,39 +69,41 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-           # 恢复keystore文件（优化版）
+     # 恢复keystore文件
       - name: Restore keystore
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           # 创建目录
           mkdir -p $(dirname "${{ env.KEYSTORE_FILE }}")
           
-          # 调试：检查变量是否存在
-          echo "Checking secrets..."
+          # 检查secret是否存在
           if [ -z "${{ secrets.KEYSTORE_FILE_CONTENTS }}" ]; then
-            echo "::error::KEYSTORE_FILE_CONTENTS secret is empty or not set!"
+            echo "::error::KEYSTORE_FILE_CONTENTS secret is not set!"
+            echo "请确保已在仓库Settings > Secrets中设置KEYSTORE_FILE_CONTENTS"
             exit 1
           fi
-        
+          
           # 从secrets解码keystore
           echo "${{ secrets.KEYSTORE_FILE_CONTENTS }}" | base64 -di > "${{ env.KEYSTORE_FILE }}"
           
           # 验证文件
           if [ ! -s "${{ env.KEYSTORE_FILE }}" ]; then
-            echo "::error::Keystore file is empty or not restored!"
-            echo "File size: $(wc -c < "${{ env.KEYSTORE_FILE }}") bytes"
+            echo "::error::Keystore文件恢复失败或内容为空!"
+            echo "文件大小: $(wc -c < "${{ env.KEYSTORE_FILE }}") bytes"
             ls -la $(dirname "${{ env.KEYSTORE_FILE }}")
             exit 1
           fi
           
-          # 设置严格权限
-          chmod 600 "${{ env.KEYSTORE_FILE }}"
-          echo "Keystore successfully restored to: ${{ env.KEYSTORE_FILE }}"
-          echo "File info: $(ls -la "${{ env.KEYSTORE_FILE }}")"
+          echo "Keystore文件恢复成功: ${{ env.KEYSTORE_FILE }}"
+          ls -la "${{ env.KEYSTORE_FILE }}"
 
-      # 9. 配置签名（优化版）
+      # 配置签名
       - name: Configure signing
         working-directory: ${{ env.PROJECT_DIR }}
+        env:
+          KEYSTORE_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           # 创建key.properties
           cat > android/key.properties <<EOF
@@ -114,7 +113,7 @@ jobs:
           keyPassword=${{ env.KEY_PASSWORD }}
           EOF
 
-          # 更新build.gradle（更可靠的修改方式）
+          # 更新build.gradle
           sed -i '/android {/a \
           signingConfigs {\
               release {\
@@ -131,10 +130,7 @@ jobs:
               }' android/app/build.gradle
 
           echo "签名配置验证:"
-          echo "key.properties内容:"
           cat android/key.properties
-          echo "build.gradle签名配置:"
-          grep -A10 "signingConfigs" android/app/build.gradle
 
       # 10. 智能修复项目结构
       - name: Fix and Prepare Project
