@@ -69,69 +69,7 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-     # 恢复keystore文件
-      - name: Restore keystore
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          # 创建目录
-          mkdir -p $(dirname "${{ env.KEYSTORE_FILE }}")
-          
-          # 检查secret是否存在
-          if [ -z "${{ vars.KEYSTORE_FILE }}" ]; then
-            echo "::error::KEYSTORE_FILE vars is not set!"
-            echo "请确保已在仓库Settings > vars 中设置KEYSTORE_FILE"
-            exit 1
-          fi
-          
-          # 从secrets解码keystore
-          echo "${{ vars.KEYSTORE_FILE }}" | base64 -di > "${{ env.KEYSTORE_FILE }}"
-          
-          # 验证文件
-          if [ ! -s "${{ env.KEYSTORE_FILE }}" ]; then
-            echo "::error::Keystore文件恢复失败或内容为空!"
-            echo "文件大小: $(wc -c < "${{ env.KEYSTORE_FILE }}") bytes"
-            ls -la $(dirname "${{ env.KEYSTORE_FILE }}")
-            exit 1
-          fi
-          
-          echo "Keystore文件恢复成功: ${{ env.KEYSTORE_FILE }}"
-          ls -la "${{ env.KEYSTORE_FILE }}"
-
-      # 配置签名
-      - name: Configure signing
-        working-directory: ${{ env.PROJECT_DIR }}
-        env:
-          KEYSTORE_ALIAS: ${{ vars.KEY_ALIAS }}
-          KEYSTORE_PASSWORD: ${{ vars.KEYSTORE_PASSWORD }}
-          KEY_PASSWORD: ${{ vars.KEY_PASSWORD }}
-        run: |
-          # 创建key.properties
-          cat > android/key.properties <<EOF
-          storeFile=${PWD}/${{ env.KEYSTORE_FILE }}
-          storePassword=${{ env.KEYSTORE_PASSWORD }}
-          keyAlias=${{ env.KEYSTORE_ALIAS }}
-          keyPassword=${{ env.KEY_PASSWORD }}
-          EOF
-
-          # 更新build.gradle
-          sed -i '/android {/a \
-          signingConfigs {\
-              release {\
-                  keyAlias "'"${{ env.KEYSTORE_ALIAS }}"'"\
-                  keyPassword "'"${{ env.KEY_PASSWORD }}"'"\
-                  storeFile file("'"${PWD}/${{ env.KEYSTORE_FILE }}"'")\
-                  storePassword "'"${{ env.KEYSTORE_PASSWORD }}"'"\
-              }\
-          }' android/app/build.gradle
-
-          sed -i '/buildTypes {/a \
-              release {\
-                  signingConfig signingConfigs.release\
-              }' android/app/build.gradle
-
-          echo "签名配置验证:"
-          cat android/key.properties
-
+   
       # 10. 智能修复项目结构
       - name: Fix and Prepare Project
         working-directory: ${{ env.PROJECT_DIR }}
@@ -182,19 +120,34 @@ jobs:
         run: |
           flutter pub get
 
-      # 12. 构建APK
-      - name: Build APK
+     # 12. 解码并保存 keystore 文件
+      - name: Decode and Save Keystore
+        run: |
+          echo "${{ vars.KEYSTORE_FILE }}" | base64 -d > pos_android_studio_demo/app.keystore
+
+      - name: Build the release signed APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           echo "使用入口点: $ENTRY_POINT"
           flutter clean
           flutter build apk --release --no-tree-shake-icons -t "$ENTRY_POINT"
+            -Pandroid.injected.signing.store.file=app.keystore \
+            -Pandroid.injected.signing.store.password=${{ vars.KEYSTORE_PASSWORD }} \
+            -Pandroid.injected.signing.key.alias=${{ vars.KEY_ALIAS }} \
+            -Pandroid.injected.signing.key.password=${{ vars.KEY_PASSWORD }}
+      # # 12. 构建APK
+      # - name: Build APK
+      #   working-directory: ${{ env.PROJECT_DIR }}
+      #   run: |
+      #     echo "使用入口点: $ENTRY_POINT"
+      #     flutter clean
+      #     flutter build apk --release --no-tree-shake-icons -t "$ENTRY_POINT"
           
-          # 验证APK是否已签名
-          if ! apksigner verify --verbose build/app/outputs/flutter-apk/app-release.apk; then
-            echo "::error::APK签名验证失败!"
-            exit 1
-          fi
+      #     # 验证APK是否已签名
+      #     if ! apksigner verify --verbose build/app/outputs/flutter-apk/app-release.apk; then
+      #       echo "::error::APK签名验证失败!"
+      #       exit 1
+      #     fi
 
       # 13. 提取版本信息
       - name: Extract version info
