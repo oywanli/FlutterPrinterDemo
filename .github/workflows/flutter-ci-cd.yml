@@ -1,175 +1,30 @@
-name: Flutter CI/CD Pipeline
+name: Build and Release Flutter APK
 
 on:
   push:
-    branches: [main]
-    tags: ['v*.*.*']
-  pull_request:
-    branches: [main]
-
-env:
-  FLUTTER_VERSION: "3.19.5"
-  PROJECT_DIR: "flutter_printer_qpos"
-  ORG_NAME: "com.dspread"
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
-  build-and-release:
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 允许 GITHUB_TOKEN 发布 release
 
     steps:
-      # 1. 检出代码（获取完整提交历史）
-      - name: Checkout code
+      - name: Checkout source
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # 获取完整提交历史，以便获取提交信息
 
-      # 2. 获取提交信息
-      - name: Get commit details
-        id: commit
-        run: |
-          echo "commit_hash=$(git log -1 --pretty=%H)" >> $GITHUB_OUTPUT
-          echo "commit_message=$(git log -1 --pretty=%s)" >> $GITHUB_OUTPUT
-          echo "commit_author=$(git log -1 --pretty=%an)" >> $GITHUB_OUTPUT
-          echo "commit_date=$(git log -1 --pretty=%cd --date=format:'%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
-          echo "commit_url=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$GITHUB_SHA" >> $GITHUB_OUTPUT
-
-      # 3. 验证项目目录
-      - name: Verify project directory
-        run: |
-          if [ ! -d "${{ env.PROJECT_DIR }}" ]; then
-            echo "::error::Project directory '${{ env.PROJECT_DIR }}' not found!"
-            ls -la
-            exit 1
-          fi
-
-      # 4. 设置Flutter环境
-      - name: Set up Flutter
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
-          cache: true
+          flutter-version: '3.13.0'
 
-      # 5. 验证环境
-      - name: Verify Flutter
-        run: |
-          flutter --version
-          flutter doctor
+      - name: Disable analytics
+        run: flutter config --no-analytics
 
-      # 6. 智能修复项目结构（兼容大小写）
-      - name: Fix and Prepare Project
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          # 1. 查找入口文件（兼容大小写）
-          echo "查找入口文件..."
-          ENTRY_POINT=""
-          # 检查可能的入口文件路径（不区分大小写）
-          for path in "example/lib/main.dart" "Example/lib/main.dart" "lib/main.dart"; do
-            if [ -f "$path" ]; then
-              ENTRY_POINT="$path"
-              break
-            fi
-          done
-          
-          # 如果标准路径没找到，使用find命令搜索
-          if [ -z "$ENTRY_POINT" ]; then
-            ENTRY_POINT=$(find . -iname "main.dart" -o -iname "main_prod.dart" | head -1)
-            if [ -z "$ENTRY_POINT" ]; then
-              echo "::error::未找到任何Dart入口文件!"
-              exit 1
-            fi
-          fi
-          echo "找到入口文件: $ENTRY_POINT"
-          echo "ENTRY_POINT=$ENTRY_POINT" >> $GITHUB_ENV
-
-          # 2. 备份关键文件（兼容大小写）
-          echo "备份关键文件..."
-          mkdir -p ../temp_backup
-          
-          # 备份lib和pubspec.yaml
-          cp -r lib pubspec.yaml ../temp_backup/
-          
-          # 备份assets目录（兼容大小写）
-          for dir in assets Assets; do
-            if [ -d "$dir" ]; then
-              cp -r "$dir" ../temp_backup/
-              break
-            fi
-          done
-          
-          # 备份test目录
-          [ -d "test" ] && cp -r test ../temp_backup/
-          
-          # 3. 修复pages目录大小写问题
-          echo "修复pages目录大小写问题..."
-          if [ -d "example/pages" ] && [ ! -d "example/Pages" ]; then
-            mv "example/pages" "example/Pages"
-          elif [ -d "lib/pages" ] && [ ! -d "lib/Pages" ]; then
-            mv "lib/pages" "lib/Pages"
-          fi
-          
-          # 4. 修复导入语句中的大小写问题
-          echo "修复导入语句..."
-          for file in $(find . -name "*.dart"); do
-            # 修复pages/Pages大小写问题
-            sed -i -E "s|import ['\"][pP]ages/PrintItemsPage\.dart['\"]|import 'Pages/PrintItemsPage.dart'|g" "$file"
-          done
-          
-          # 5. 重建项目结构
-          echo "重建项目结构..."
-          cd ..
-          flutter create \
-            --platforms android,ios \
-            --project-name ${{ env.PROJECT_DIR }} \
-            --org ${{ env.ORG_NAME }} \
-            --overwrite \
-            temp_flutter_project
-          
-          # 6. 恢复项目
-          echo "恢复项目..."
-          cp -r temp_flutter_project/. ${{ env.PROJECT_DIR }}/
-          rm -rf temp_flutter_project
-          
-          # 7. 恢复原有代码
-          cd ${{ env.PROJECT_DIR }}
-          rm -rf lib test
-          cp -r ../temp_backup/lib .
-          [ -d "../temp_backup/test" ] && cp -r ../temp_backup/test .
-          cp ../temp_backup/pubspec.yaml .
-          
-          # 恢复assets目录（兼容大小写）
-          for dir in assets Assets; do
-            if [ -d "../temp_backup/$dir" ]; then
-              cp -r "../temp_backup/$dir" .
-              break
-            fi
-          done
-          
-          # 8. 确保入口文件存在
-          if [ ! -f "$ENTRY_POINT" ]; then
-            echo "::error::入口文件 $ENTRY_POINT 不存在!"
-            exit 1
-          fi
-          
-          # 9. 清理备份
-          rm -rf ../temp_backup
-          echo "项目准备完成!"
-
-      # 7. 获取依赖
-      - name: Get dependencies
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          flutter pub get
-
-      # 8. 设置Java环境
-      - name: Set up JDK
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
-
-     # 解码 keystore
+      # 解码 keystore
       - name: Decode keystore from secret
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > flutter_printer_qpos/example/android/app/app.keystore
@@ -177,7 +32,7 @@ jobs:
       # 创建 key.properties 文件
       - name: Create key.properties
         run: |
-          cat > flutter_plugin_qpos/example/android/key.properties <<EOF
+          cat > flutter_printer_qpos/example/android/key.properties <<EOF
           storePassword=${{ secrets.KEYSTORE_PASSWORD }}
           keyPassword=${{ secrets.KEY_PASSWORD }}
           keyAlias=${{ secrets.KEY_ALIAS }}
@@ -194,51 +49,47 @@ jobs:
         run: flutter analyze || true
         working-directory: flutter_printer_qpos
 
+      # 构建 APK（已签名）
+      - name: Build signed APK
+        run: flutter build apk --release
+        working-directory: flutter_printer_qpos/example
 
-      # 9. 构建APK (使用找到的入口点)
-      - name: Build APK
-        working-directory: ${{ env.PROJECT_DIR }}
+      # 自动生成 TAG（递增规则 0.0.1 -> 0.0.2 ... -> 0.1.0）
+      - name: Determine next tag
+        id: tag
         run: |
-          echo "使用入口点: $ENTRY_POINT"
-          flutter clean
-          flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT
+         # 获取远程 tag 列表
+          git fetch --tags
+          latest_tag=$(git tag | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+          if [[ -z "$latest_tag" ]]; then
+            next_tag="1.0.0"
+          else
+            IFS='.' read -r major minor patch <<<"${latest_tag}"
+            if [[ $patch -lt 9 ]]; then
+              patch=$((patch+1))
+            else
+              patch=0
+              minor=$((minor+1))
+            fi
+            next_tag="${major}.${minor}.${patch}"
+          fi
+          echo "Next tag: $next_tag"
+          echo "tag=$next_tag" >> $GITHUB_OUTPUT
 
-      # 10. 提取版本信息并设置构建日期
-      - name: Extract version info
-        id: version
-        working-directory: ${{ env.PROJECT_DIR }}
+      # 创建 Git Tag（必要）
+      - name: Create Git tag
         run: |
-          VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}' | tr -d '\"')
-          APP_NAME=$(grep 'name:' pubspec.yaml | awk '{print $2}' | tr -d '\"')
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "APP_NAME=$APP_NAME" >> $GITHUB_OUTPUT
-          echo "APK_PATH=${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk" >> $GITHUB_OUTPUT
-          echo "BUILD_DATE=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag ${{ steps.tag.outputs.tag }}
+          git push origin ${{ steps.tag.outputs.tag }}
 
-      # 11. 创建发布
-      - name: Create Release
-        id: create_release
-        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # 创建 GitHub Release 并上传 APK
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.VERSION }}
-          name: ${{ steps.version.outputs.APP_NAME }} v${{ steps.version.outputs.VERSION }}
-          body: |
-            ## 🚀 ${{ steps.version.outputs.APP_NAME }} v${{ steps.version.outputs.VERSION }}
-            
-            **Commit Messgae**
-            - commit hash: [${{ steps.commit.outputs.commit_hash }}](${{ steps.commit.outputs.commit_url }})
-            - commit message: ${{ steps.commit.outputs.commit_message }}
-            - commit author: ${{ steps.commit.outputs.commit_author }}
-            - commit date: ${{ steps.commit.outputs.commit_date }}
-            
-            **APK Version**
-            - Version: ${{ steps.version.outputs.VERSION }}
-      
-          draft: false
-          prerelease: false
-          fail_on_unmatched_files: true
-          files: |
-            ${{ steps.version.outputs.APK_PATH }}
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Release ${{ steps.tag.outputs.tag }}
+          files: flutter_printer_qpos/example/build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
