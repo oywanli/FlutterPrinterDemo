@@ -42,17 +42,17 @@ jobs:
       # 安装依赖
       - name: Install dependencies
         run: flutter pub get
-        working-directory: flutter_plugin_qpos/example
+        working-directory: flutter_printer_qpos/example
 
       # 分析插件本体
       - name: Analyze (non-fatal)
         run: flutter analyze || true
-        working-directory: flutter_plugin_qpos
+        working-directory: flutter_printer_qpos
 
       # 构建 APK（已签名）
       - name: Build signed APK
         run: flutter build apk --release
-        working-directory: flutter_plugin_qpos/example
+        working-directory: flutter_printer_qpos/example
 
       # 自动生成 TAG（递增规则 0.0.1 -> 0.0.2 ... -> 0.1.0）
       - name: Determine next tag
@@ -90,6 +90,6 @@ jobs:
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: Release ${{ steps.tag.outputs.tag }}
-          files: flutter_plugin_qpos/example/build/app/outputs/flutter-apk/app-release.apk
+          files: flutter_printer_qpos/example/build/app/outputs/flutter-apk/app-release.apk
         env:
           GITHUB_TOKEN: ${{ github.token }}
