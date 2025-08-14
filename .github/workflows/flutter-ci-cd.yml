@@ -166,12 +166,27 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '17'
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v2
-        with:
-          build-tools-version: "34.0.0"  # 明确指定版本
-          cmake-version: "3.22.1" 
-          android-sdk-path: ${{ github.workspace }}/android-sdk
+      - name: Install Android SDK
+        run: |
+           # 创建 SDK 目录
+           mkdir -p $HOME/android-sdk
+        
+           # 下载并安装命令行工具
+           cd $HOME/android-sdk
+           wget https://dl.google.com/android/repository/commandlinetools-linux-8512546_latest.zip
+           unzip commandlinetools-linux-*.zip
+           rm commandlinetools-linux-*.zip
+        
+           # 设置 SDK 根目录
+           echo "export ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+           echo "export PATH=$PATH:$HOME/android-sdk/cmdline-tools/bin" >> $GITHUB_ENV
+        
+           # 接受 licenses 并安装必要组件
+           yes | sdkmanager --licenses
+           sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-33"
+        
+           # 验证安装
+           ls -la $HOME/android-sdk/build-tools/
 
      # 解码 keystore
       - name: Decode keystore from secret
@@ -206,20 +221,17 @@ jobs:
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           # 1. 设置准确的Android SDK路径
-             export ANDROID_HOME="${{ github.workspace }}/android-sdk"
-             export PATH="$PATH:$ANDROID_HOME/build-tools/34.0.0"
+            # 使用正确的 SDK 路径
+           export ANDROID_HOME=$HOME/android-sdk
+           export PATH="$PATH:$ANDROID_HOME/build-tools/34.0.0"
+        
+           # 验证路径
+           echo "ANDROID_HOME 内容:"
+           ls -la $ANDROID_HOME
+           echo "Build tools 内容:"
+           ls -la $ANDROID_HOME/build-tools/
     
-          # 2. 获取最新的build-tools版本（修复通配符问题）
-          BUILD_TOOLS_VERSION=$(ls $ANDROID_HOME/build-tools | sort -V | tail -1)
-          APKSIGNER_PATH="$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/apksigner"
     
-          # 3. 验证工具是否存在
-          if [ ! -f "$APKSIGNER_PATH" ]; then
-           echo "::error::apksigner未找到！"
-           echo "检测路径: $APKSIGNER_PATH"
-           echo "现有build-tools版本: $(ls $ANDROID_HOME/build-tools)"
-           exit 1
-          fi
 
           # 4. 定义APK路径
           UNSIGNED_APK="build/app/outputs/flutter-apk/app-release.apk"
