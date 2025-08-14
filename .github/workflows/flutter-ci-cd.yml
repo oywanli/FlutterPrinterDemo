@@ -201,13 +201,13 @@ jobs:
         working-directory: ${{ env.PROJECT_DIR }}/example
         run: |
           # 定义路径
-          UNSIGNED_APK="build/app/outputs/flutter-apk/app-release.apk"
-          SIGNED_APK="build/app/outputs/flutter-apk/app-release-signed.apk"
+          UNSIGNED_APK="flutter_printer_qpos/example/build/app/outputs/flutter-apk/app-release.apk"
+          SIGNED_APK="flutter_printer_qpos/example/build/app/outputs/flutter-apk/app-release-signed.apk"
           
           # 验证原始APK存在
           if [ ! -f "$UNSIGNED_APK" ]; then
             echo "::error::未找到APK文件 $UNSIGNED_APK"
-            ls -la build/app/outputs/flutter-apk/
+            ls -la flutter_printer_qpos/example/build/app/outputs/flutter-apk/
             exit 1
           fi
 
