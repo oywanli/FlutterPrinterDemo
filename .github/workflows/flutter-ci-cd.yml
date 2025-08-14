@@ -196,32 +196,72 @@ jobs:
          flutter clean
          flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT
 
- # 9. 签名APK
+ # # 9. 签名APK
+ #      - name: Sign APK
+ #        working-directory: ${{ env.PROJECT_DIR }}
+ #        run: |
+ #          # 定义路径
+ #          UNSIGNED_APK="build/app/outputs/flutter-apk/app-release.apk"
+ #          SIGNED_APK="build/app/outputs/flutter-apk/app-release-signed.apk"
+          
+ #          # 验证原始APK存在
+ #          if [ ! -f "$UNSIGNED_APK" ]; then
+ #            echo "::error::未找到APK文件 $UNSIGNED_APK"
+ #            ls -la build/app/outputs/flutter-apk/
+ #            exit 1
+ #          fi
+
+ #          # 签名APK
+ #          jarsigner \
+ #            -verbose \
+ #            -sigalg SHA256withRSA \
+ #            -digestalg SHA-256 \
+ #            -keystore example/android/app/app.keystore \
+ #            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
+ #            -keypass "${{ secrets.KEY_PASSWORD }}" \
+ #            -signedjar "$SIGNED_APK" \
+ #            "$UNSIGNED_APK" \
+ #            "${{ secrets.KEY_ALIAS }}"
+
+
+
       - name: Sign APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           # 定义路径
           UNSIGNED_APK="build/app/outputs/flutter-apk/app-release.apk"
           SIGNED_APK="build/app/outputs/flutter-apk/app-release-signed.apk"
-          
-          # 验证原始APK存在
+    
+          # 检查原始APK是否存在
           if [ ! -f "$UNSIGNED_APK" ]; then
             echo "::error::未找到APK文件 $UNSIGNED_APK"
             ls -la build/app/outputs/flutter-apk/
             exit 1
           fi
 
-          # 签名APK
+          # 1. 先使用 jarsigner 进行 v1签名（兼容旧设备）
           jarsigner \
-            -verbose \
-            -sigalg SHA256withRSA \
-            -digestalg SHA-256 \
-            -keystore example/android/app/app.keystore \
-            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
-            -keypass "${{ secrets.KEY_PASSWORD }}" \
-            -signedjar "$SIGNED_APK" \
-            "$UNSIGNED_APK" \
-            "${{ secrets.KEY_ALIAS }}"
+          -verbose \
+          -sigalg SHA256withRSA \
+          -digestalg SHA-256 \
+          -keystore example/android/app/app.keystore \
+          -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
+          -keypass "${{ secrets.KEY_PASSWORD }}" \
+          -signedjar "$SIGNED_APK" \
+          "$UNSIGNED_APK" \
+          "${{ secrets.KEY_ALIAS }}"
+
+          # 2. 再使用 apksigner 进行 v2/v3签名（推荐）
+          $ANDROID_HOME/build-tools/*/apksigner sign \
+          --ks example/android/app/app.keystore \
+          --ks-pass "pass:${{ secrets.KEYSTORE_PASSWORD }}" \
+          --key-pass "pass:${{ secrets.KEY_PASSWORD }}" \
+          --ks-key-alias "${{ secrets.KEY_ALIAS }}" \
+          --out "$SIGNED_APK" \
+          "$SIGNED_APK"
+
+          # 3. 验证签名
+          $ANDROID_HOME/build-tools/*/apksigner verify --verbose "$SIGNED_APK"
 
 
        # 10. 提取版本信息并设置构建日期
