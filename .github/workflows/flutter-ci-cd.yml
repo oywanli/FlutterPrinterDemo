@@ -223,12 +223,6 @@ jobs:
             "$UNSIGNED_APK" \
             "${{ secrets.KEY_ALIAS }}"
 
-          # 优化对齐
-          $ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort -r | head -1)/zipalign -v 4 "$SIGNED_APK" "$SIGNED_APK.aligned"
-          mv "$SIGNED_APK.aligned" "$SIGNED_APK"
-
-          # 验证签名
-          $ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort -r | head -1)/apksigner verify --print-certs "$SIGNED_APK"
 
       # 10. 提取版本信息
       - name: Extract version info
