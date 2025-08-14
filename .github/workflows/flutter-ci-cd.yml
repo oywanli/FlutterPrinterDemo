@@ -236,8 +236,8 @@ jobs:
           # 定义路径
           UNSIGNED_APK="build/app/outputs/flutter-apk/app-release.apk"
           SIGNED_APK="build/app/outputs/flutter-apk/app-release-signed.apk"
-          export ANDROID_HOME=$HOME/Android/Sdk
-          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort -r | head -1)
+          export ANDROID_HOME="$HOME/Android/Sdk"
+          export PATH="$PATH:$ANDROID_HOME/build-tools/34.0.0"  # 直接指定版本
     
           # 检查原始APK是否存在
           if [ ! -f "$UNSIGNED_APK" ]; then
