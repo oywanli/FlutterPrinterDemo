@@ -256,4 +256,4 @@ jobs:
           prerelease: false
           fail_on_unmatched_files: true
           files: |
-            ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-signed.apk
+            ${{ steps.version.outputs.APK_PATH }}
