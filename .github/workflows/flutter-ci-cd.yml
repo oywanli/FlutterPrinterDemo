@@ -196,15 +196,22 @@ jobs:
          flutter clean
          flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT
 
-  
-      # 使用 jarsigner 手动签名 APK
-      - name: Sign APK with keystore
+ # 9. 签名APK
+      - name: Sign APK
+        working-directory: ${{ env.PROJECT_DIR }}/example
         run: |
-          # 找到构建的 APK 文件（通常位于 build/app/outputs/flutter-apk/）
-          APK_PATH=${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk  # 根据实际情况调整
-          SIGNED_APK="app-signed.apk"
+          # 定义路径
+          UNSIGNED_APK="build/app/outputs/flutter-apk/app-release.apk"
+          SIGNED_APK="build/app/outputs/flutter-apk/app-release-signed.apk"
+          
+          # 验证原始APK存在
+          if [ ! -f "$UNSIGNED_APK" ]; then
+            echo "::error::未找到APK文件 $UNSIGNED_APK"
+            ls -la build/app/outputs/flutter-apk/
+            exit 1
+          fi
 
-          # 使用 jarsigner 签名
+          # 签名APK
           jarsigner \
             -verbose \
             -sigalg SHA256withRSA \
@@ -212,25 +219,30 @@ jobs:
             -keystore flutter_printer_qpos/example/android/app/app.keystore \
             -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
             -keypass "${{ secrets.KEY_PASSWORD }}" \
-            -signedjar $SIGNED_APK \
-            $APK_PATH \
+            -signedjar "$SIGNED_APK" \
+            "$UNSIGNED_APK" \
             "${{ secrets.KEY_ALIAS }}"
 
-            
+          # 优化对齐
+          $ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort -r | head -1)/zipalign -v 4 "$SIGNED_APK" "$SIGNED_APK.aligned"
+          mv "$SIGNED_APK.aligned" "$SIGNED_APK"
 
-      # 10. 提取版本信息并设置构建日期
+          # 验证签名
+          $ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort -r | head -1)/apksigner verify --print-certs "$SIGNED_APK"
+
+      # 10. 提取版本信息
       - name: Extract version info
         id: version
-        working-directory: ${{ env.PROJECT_DIR }}
+        working-directory: ${{ env.PROJECT_DIR }}/example
         run: |
           VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}' | tr -d '\"')
           APP_NAME=$(grep 'name:' pubspec.yaml | awk '{print $2}' | tr -d '\"')
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "APP_NAME=$APP_NAME" >> $GITHUB_OUTPUT
-          echo "APK_PATH=${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-signed.apk" >> $GITHUB_OUTPUT
           echo "BUILD_DATE=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
+          echo "APK_PATH=$(pwd)/build/app/outputs/flutter-apk/app-release-signed.apk" >> $GITHUB_OUTPUT
 
-      # 11. 创建发布
+      # 11. 创建Release
       - name: Create Release
         id: create_release
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
@@ -243,17 +255,96 @@ jobs:
           body: |
             ## 🚀 ${{ steps.version.outputs.APP_NAME }} v${{ steps.version.outputs.VERSION }}
             
-            **Commit Messgae**
-            - commit hash: [${{ steps.commit.outputs.commit_hash }}](${{ steps.commit.outputs.commit_url }})
-            - commit message: ${{ steps.commit.outputs.commit_message }}
-            - commit author: ${{ steps.commit.outputs.commit_author }}
-            - commit date: ${{ steps.commit.outputs.commit_date }}
-            
-            **APK Version**
+            **Build Information**
             - Version: ${{ steps.version.outputs.VERSION }}
-      
+            - Build Date: ${{ steps.version.outputs.BUILD_DATE }}
+            
+            **Commit Information**
+            - Commit: [${{ steps.commit.outputs.commit_hash }}](${{ steps.commit.outputs.commit_url }})
+            - Message: ${{ steps.commit.outputs.commit_message }}
+            - Author: ${{ steps.commit.outputs.commit_author }}
+            - Date: ${{ steps.commit.outputs.commit_date }}
+            
+            **Installation**
+            Download the signed APK below and install on your Android device.
           draft: false
           prerelease: false
-          fail_on_unmatched_files: true
           files: |
             ${{ steps.version.outputs.APK_PATH }}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+         
+
+  
+      # # 使用 jarsigner 手动签名 APK
+      # - name: Sign APK with keystore
+      #   run: |
+      #     # 找到构建的 APK 文件（通常位于 build/app/outputs/flutter-apk/）
+      #     APK_PATH=${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk  # 根据实际情况调整
+      #     SIGNED_APK="app-signed.apk"
+
+      #     # 使用 jarsigner 签名
+      #     jarsigner \
+      #       -verbose \
+      #       -sigalg SHA256withRSA \
+      #       -digestalg SHA-256 \
+      #       -keystore flutter_printer_qpos/example/android/app/app.keystore \
+      #       -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
+      #       -keypass "${{ secrets.KEY_PASSWORD }}" \
+      #       -signedjar $SIGNED_APK \
+      #       $APK_PATH \
+      #       "${{ secrets.KEY_ALIAS }}"
+
+            
+
+      # # 10. 提取版本信息并设置构建日期
+      # - name: Extract version info
+      #   id: version
+      #   working-directory: ${{ env.PROJECT_DIR }}
+      #   run: |
+      #     VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}' | tr -d '\"')
+      #     APP_NAME=$(grep 'name:' pubspec.yaml | awk '{print $2}' | tr -d '\"')
+      #     echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+      #     echo "APP_NAME=$APP_NAME" >> $GITHUB_OUTPUT
+      #     echo "APK_PATH=${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-signed.apk" >> $GITHUB_OUTPUT
+      #     echo "BUILD_DATE=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
+
+      # # 11. 创建发布
+      # - name: Create Release
+      #   id: create_release
+      #   if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+      #   uses: softprops/action-gh-release@v1
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     tag_name: v${{ steps.version.outputs.VERSION }}
+      #     name: ${{ steps.version.outputs.APP_NAME }} v${{ steps.version.outputs.VERSION }}
+      #     body: |
+      #       ## 🚀 ${{ steps.version.outputs.APP_NAME }} v${{ steps.version.outputs.VERSION }}
+            
+      #       **Commit Messgae**
+      #       - commit hash: [${{ steps.commit.outputs.commit_hash }}](${{ steps.commit.outputs.commit_url }})
+      #       - commit message: ${{ steps.commit.outputs.commit_message }}
+      #       - commit author: ${{ steps.commit.outputs.commit_author }}
+      #       - commit date: ${{ steps.commit.outputs.commit_date }}
+            
+      #       **APK Version**
+      #       - Version: ${{ steps.version.outputs.VERSION }}
+      
+      #     draft: false
+      #     prerelease: false
+      #     fail_on_unmatched_files: true
+      #     files: |
+      #       ${{ steps.version.outputs.APK_PATH }}
