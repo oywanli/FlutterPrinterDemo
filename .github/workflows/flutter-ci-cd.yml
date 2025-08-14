@@ -196,6 +196,30 @@ jobs:
          flutter clean
          flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT
 
+
+
+
+      # 使用 jarsigner 手动签名 APK
+      - name: Sign APK with keystore
+        run: |
+          # 找到构建的 APK 文件（通常位于 build/app/outputs/flutter-apk/）
+          APK_PATH=${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk  # 根据实际情况调整
+          SIGNED_APK="app-signed.apk"
+
+          # 使用 jarsigner 签名
+          jarsigner \
+            -verbose \
+            -sigalg SHA256withRSA \
+            -digestalg SHA-256 \
+            -keystore app.keystore \
+            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
+            -keypass "${{ secrets.KEY_PASSWORD }}" \
+            -signedjar $SIGNED_APK \
+            $APK_PATH \
+            "${{ secrets.KEY_ALIAS }}"
+
+            
+
       # 10. 提取版本信息并设置构建日期
       - name: Extract version info
         id: version
@@ -205,7 +229,7 @@ jobs:
           APP_NAME=$(grep 'name:' pubspec.yaml | awk '{print $2}' | tr -d '\"')
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "APP_NAME=$APP_NAME" >> $GITHUB_OUTPUT
-          echo "APK_PATH=${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk" >> $GITHUB_OUTPUT
+          echo "APK_PATH=${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-signed.apk" >> $GITHUB_OUTPUT
           echo "BUILD_DATE=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
 
       # 11. 创建发布
