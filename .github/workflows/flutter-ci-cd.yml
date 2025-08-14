@@ -209,7 +209,7 @@ jobs:
             -verbose \
             -sigalg SHA256withRSA \
             -digestalg SHA-256 \
-            -keystore flutter_printer_qpos/example/android/app/app.keystore \
+            -keystore example/android/app/app.keystore \
             -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
             -keypass "${{ secrets.KEY_PASSWORD }}" \
             -signedjar "$SIGNED_APK" \
