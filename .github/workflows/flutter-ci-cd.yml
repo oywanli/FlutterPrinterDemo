@@ -167,28 +167,34 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-       # 解码 keystore
+     # 解码 keystore
       - name: Decode keystore from secret
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > flutter_printer_qpos/example/android/app/app.keystore
 
-      # 创建 key.properties 文件
+# 创建 key.properties 文件
       - name: Create key.properties
         run: |
-          cat > flutter_printer_qpos/example/android/key.properties <<EOF
+          cat > flutter_printer_qpos/example/android/app/key.properties <<EOF
           storePassword=${{ secrets.KEYSTORE_PASSWORD }}
           keyPassword=${{ secrets.KEY_PASSWORD }}
           keyAlias=${{ secrets.KEY_ALIAS }}
           storeFile=app.keystore
-          EOF 
+          EOF
 
-      # 9. 构建APK (使用找到的入口点)
+# 验证文件是否创建成功
+      - name: Verify keystore and properties
+        run: |
+          ls -la flutter_printer_qpos/example/android/app/app.keystore
+          cat flutter_printer_qpos/example/android/app/key.properties
+
+# 构建APK
       - name: Build APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          echo "使用入口点: $ENTRY_POINT"
-          flutter clean
-          flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT
+         echo "使用入口点: $ENTRY_POINT"
+         flutter clean
+         flutter build apk --release --no-tree-shake-icons -t $ENTRY_POINT
 
       # 10. 提取版本信息并设置构建日期
       - name: Extract version info
