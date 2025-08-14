@@ -166,6 +166,11 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '17'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v2
+        with:
+          build-tools-version: "34.0.0"  # 明确指定版本
+          cmake-version: "3.22.1" 
 
      # 解码 keystore
       - name: Decode keystore from secret
